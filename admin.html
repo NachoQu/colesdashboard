@@ -9,6 +9,18 @@ input,textarea{width:100%;padding:9px;border:1px solid #cfd9e7;border-radius:8px
 .grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}.btn{background:var(--blue-dark);color:#fff;border:0;padding:10px 12px;border-radius:8px;cursor:pointer}
 .btn.red{background:#b32d2d}.tbl{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px;border-bottom:1px solid #e6ecf3;text-align:left}
 #panel{display:none}
+@media(max-width:768px){
+  body{padding:12px}
+  .grid{grid-template-columns:1fr;gap:8px}
+  .tbl{font-size:12px}
+  th,td{padding:6px 4px}
+  .card{padding:12px;overflow-x:auto}
+  table{min-width:600px}
+}
+@media(max-width:480px){
+  h2{font-size:20px}
+  .btn{font-size:13px;padding:9px 10px}
+}
 </style></head><body><div class="wrap">
 <div class="card" id="login"><h2 style="margin-bottom:10px">Admin</h2><p style="color:#6e7f98;margin-bottom:10px">Ingresá como administrador para gestionar colegios y links de AppScript.</p>
 <label>Usuario</label><input id="u" placeholder="admin"><label style="display:block;margin-top:8px">Contraseña</label><input id="p" type="password" placeholder="admin2026">
