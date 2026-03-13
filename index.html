@@ -22,6 +22,7 @@ li{margin-bottom:7px}
 label{display:block;font-size:12px;font-weight:700;color:#60738f;margin:10px 0 5px}
 select,input{width:100%;padding:11px 12px;border:1px solid #cfd9e7;border-radius:10px;font-family:'Outfit',sans-serif}
 button{margin-top:14px;width:100%;border:0;border-radius:10px;padding:12px 14px;background:var(--blue-dark);color:#fff;font-weight:700;cursor:pointer}
+.admin-link{display:block;text-align:center;margin-top:10px;color:#47648a;font-size:13px;text-decoration:none}
 #err{font-size:12px;color:#b42323;margin-top:10px;min-height:16px}
 @media(max-width:900px){.wrap{grid-template-columns:1fr}.left{order:2}.right{order:1}}
 </style>
@@ -52,16 +53,32 @@ button{margin-top:14px;width:100%;border:0;border-radius:10px;padding:12px 14px;
       <label>Contraseña</label>
       <input type="password" id="pass" placeholder="Ingresá contraseña">
       <button onclick="login()">Entrar al tablero</button>
+      <a class="admin-link" href="admin.html">Ingresar como administrador</a>
       <div id="err"></div>
     </section>
   </div>
 
 <script>
 const ACCESS_KEY='dashboard_access_v1';
-const CREDENTIALS={
-  'nzps':'nzps2026',
-  'san-patricio':'sanpa2026'
-};
+const SCHOOL_CONFIGS_KEY='school_configs_v1';
+const DEFAULT_SCHOOLS=[
+  {id:'nzps',name:'NZPS',pass:'nzps2026',api:'https://script.google.com/macros/s/AKfycbzUjY4y_BWKMfmTdRV3F6RFqLizlyjnFIXjCogoc740qNtrBsi9AYM-RKjgk8Q0qv_CXw/exec',match:['nz','new zealand']},
+  {id:'san-patricio',name:'San Patricio',pass:'sanpa2026',api:'https://script.google.com/macros/s/AKfycbzUjY4y_BWKMfmTdRV3F6RFqLizlyjnFIXjCogoc740qNtrBsi9AYM-RKjgk8Q0qv_CXw/exec',match:['san patricio','sanpa']}
+];
+function loadSchoolConfigs(){
+  try{
+    const v=JSON.parse(localStorage.getItem(SCHOOL_CONFIGS_KEY)||'null');
+    if(Array.isArray(v) && v.length) return v;
+  }catch{}
+  localStorage.setItem(SCHOOL_CONFIGS_KEY, JSON.stringify(DEFAULT_SCHOOLS));
+  return [...DEFAULT_SCHOOLS];
+}
+const SCHOOLS=loadSchoolConfigs();
+const CREDENTIALS=Object.fromEntries(SCHOOLS.map(s=>[s.id,s.pass]));
+(function initSelect(){
+  const sel=document.getElementById('school');
+  sel.innerHTML=SCHOOLS.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+})();
 (function restore(){
   try{
     const saved=JSON.parse(localStorage.getItem(ACCESS_KEY)||'null');

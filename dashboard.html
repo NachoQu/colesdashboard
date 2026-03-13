@@ -141,12 +141,21 @@ td{padding:9px 12px;border-bottom:1px solid #e6ecf3}
 
 <script>
 const ACCESS_KEY='dashboard_access_v1';
-const SCHOOL_ACCESS=[
-  {id:'nzps',name:'NZPS',api:'https://script.google.com/macros/s/AKfycbzUjY4y_BWKMfmTdRV3F6RFqLizlyjnFIXjCogoc740qNtrBsi9AYM-RKjgk8Q0qv_CXw/exec',match:['nz','new zealand']},
-  {id:'san-patricio',name:'San Patricio',api:'https://script.google.com/macros/s/AKfycbzUjY4y_BWKMfmTdRV3F6RFqLizlyjnFIXjCogoc740qNtrBsi9AYM-RKjgk8Q0qv_CXw/exec',match:['san patricio','sanpa']}
+const SCHOOL_CONFIGS_KEY='school_configs_v1';
+const DEFAULT_SCHOOLS=[
+  {id:'nzps',name:'NZPS',pass:'nzps2026',api:'https://script.google.com/macros/s/AKfycbzUjY4y_BWKMfmTdRV3F6RFqLizlyjnFIXjCogoc740qNtrBsi9AYM-RKjgk8Q0qv_CXw/exec',match:['nz','new zealand']},
+  {id:'san-patricio',name:'San Patricio',pass:'sanpa2026',api:'https://script.google.com/macros/s/AKfycbzUjY4y_BWKMfmTdRV3F6RFqLizlyjnFIXjCogoc740qNtrBsi9AYM-RKjgk8Q0qv_CXw/exec',match:['san patricio','sanpa']}
 ];
+function loadSchoolConfigs(){
+  try{
+    const v=JSON.parse(localStorage.getItem(SCHOOL_CONFIGS_KEY)||'null');
+    if(Array.isArray(v) && v.length) return v;
+  }catch{}
+  localStorage.setItem(SCHOOL_CONFIGS_KEY, JSON.stringify(DEFAULT_SCHOOLS));
+  return [...DEFAULT_SCHOOLS];
+}
 const TABS=[['resumen-general','Resumen General'],['por-curso','Por Curso'],['materias','Materias'],['trayectorias','Trayectorias'],['asistencia','Asistencia'],['alerta-academica','Alerta Académica'],['rankings','Rankings'],['insights','Insights Clave']];
-let schools=[...SCHOOL_ACCESS], currentSchoolId='nzps', DB={}, charts={};
+let schools=loadSchoolConfigs(), currentSchoolId='nzps', DB={}, charts={};
 
 function loadSchools(){
   const sel=document.getElementById('school-select');
