@@ -25,10 +25,10 @@ input,textarea{width:100%;padding:9px;border:1px solid #cfd9e7;border-radius:8px
 </div>
 </div>
 <script>
-const ADMIN_USER='admin', ADMIN_PASS='admin2026', SCHOOL_CONFIGS_KEY='school_configs_v1';
+const ADMIN_USER='admin', ADMIN_PASS='admin2026', SCHOOL_CONFIGS_KEY='school_configs_v2';
 const DEFAULT_SCHOOLS=[
   {id:'nzps',name:'NZPS',pass:'nzps2026',api:'https://script.google.com/macros/s/AKfycbzUjY4y_BWKMfmTdRV3F6RFqLizlyjnFIXjCogoc740qNtrBsi9AYM-RKjgk8Q0qv_CXw/exec',match:['nz','new zealand']},
-  {id:'san-patricio',name:'San Patricio',pass:'sanpa2026',api:'https://script.google.com/macros/s/AKfycbwqq_f8SObb8BozjfaFj2O8q8lVQYgj_ZAgdMCC13KpUJM3kB9wqKcWYVm8aKN-AtYJ/exec',match:['san patricio','sanpa']}
+  {id:'san-patricio',name:'San Patricio',pass:'sanpa2026',api:'https://script.google.com/macros/s/AKfycbwqq_f8SObb8BozjfaFj2O8q8lVQYgj_ZAgdMCC13KpUJM3kB9wqKcWYVm8aKN-AtYJ/exec',match:['san patricio','san patricia','sanpa','sp-sec']}
 ];
 function load(){try{const v=JSON.parse(localStorage.getItem(SCHOOL_CONFIGS_KEY)||'null');if(Array.isArray(v)&&v.length)return v}catch{};localStorage.setItem(SCHOOL_CONFIGS_KEY,JSON.stringify(DEFAULT_SCHOOLS));return [...DEFAULT_SCHOOLS]}
 let schools=load();

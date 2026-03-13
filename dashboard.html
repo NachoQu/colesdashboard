@@ -141,10 +141,10 @@ td{padding:9px 12px;border-bottom:1px solid #e6ecf3}
 
 <script>
 const ACCESS_KEY='dashboard_access_v1';
-const SCHOOL_CONFIGS_KEY='school_configs_v1';
+const SCHOOL_CONFIGS_KEY='school_configs_v2';
 const DEFAULT_SCHOOLS=[
   {id:'nzps',name:'NZPS',pass:'nzps2026',api:'https://script.google.com/macros/s/AKfycbzUjY4y_BWKMfmTdRV3F6RFqLizlyjnFIXjCogoc740qNtrBsi9AYM-RKjgk8Q0qv_CXw/exec',match:['nz','new zealand']},
-  {id:'san-patricio',name:'San Patricio',pass:'sanpa2026',api:'https://script.google.com/macros/s/AKfycbwqq_f8SObb8BozjfaFj2O8q8lVQYgj_ZAgdMCC13KpUJM3kB9wqKcWYVm8aKN-AtYJ/exec',match:['san patricio','sanpa']}
+  {id:'san-patricio',name:'San Patricio',pass:'sanpa2026',api:'https://script.google.com/macros/s/AKfycbwqq_f8SObb8BozjfaFj2O8q8lVQYgj_ZAgdMCC13KpUJM3kB9wqKcWYVm8aKN-AtYJ/exec',match:['san patricio','san patricia','sanpa','sp-sec']}
 ];
 function loadSchoolConfigs(){
   try{
@@ -226,12 +226,8 @@ async function boot(){
     const raw=await r.json();
     if (!raw || typeof raw!=='object') throw new Error('La respuesta del AppScript no es JSON válido.');
     if (!Array.isArray(raw.calificaciones) && !Array.isArray(raw.alumnos)) throw new Error('El AppScript no devolvió hojas esperadas (alumnos/calificaciones).');
-    const sourceTag=detectSourceTag(raw);
     const wanted=activeSchool();
-    if(sourceTag.trim() && wanted.match && !wanted.match.some(m=>sourceTag.includes(String(m).toLowerCase()))){
-      throw new Error(`El endpoint cargado parece corresponder a otro colegio (detectado: ${sourceTag.slice(0,80)}...).`);
-    }
-    DB=filterDatasetBySchool(raw, wanted);
+    DB=raw;
     if (totalRows(DB)===0) throw new Error(`No hay datos para ${wanted.name} en este endpoint. Revisá el AppScript de ese colegio o su identificador.`);
     buildAll();
     document.getElementById('s-load').style.display='none';
