@@ -3,777 +3,330 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dashboard Escolar</title>
+<title>Dashboard Académico</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://d3js.org/d3.v7.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-:root {
-  --bg: #f3f6fb;
-  --s1: #ffffff;
-  --s2: #eef3fb;
-  --border: rgba(15,23,42,0.09);
-  --border-h: rgba(15,23,42,0.2);
-  --blue: #4f8ef7;
-  --green: #34d399;
-  --amber: #fbbf24;
-  --red: #f87171;
-  --purple: #a78bfa;
-  --cyan: #22d3ee;
-  --text: #1e293b;
-  --muted: #64748b;
-  --dim: #f8fafc;
-  --r: 12px;
+:root{
+  --bg:#e9eff5;--card:#fff;--text:#24324a;--muted:#6e7f98;--line:#d6dee9;
+  --blue:#255b9f;--blue-dark:#1f4577;--green:#43a86f;--amber:#d4a23b;--red:#e25b5b;
 }
-*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
-html{scroll-behavior:smooth}
-body{background:var(--bg);color:var(--text);font-family:'Outfit',sans-serif;font-size:14px;min-height:100vh}
-
-/* NOISE */
-body::after{content:'';position:fixed;inset:0;opacity:.12;pointer-events:none;z-index:999;
-  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.05'/%3E%3C/svg%3E")}
-
-/* BLOBS */
-.blob{position:fixed;border-radius:50%;filter:blur(130px);pointer-events:none;z-index:0;opacity:.12}
-.b1{width:700px;height:700px;background:#4f8ef7;top:-300px;left:-200px}
-.b2{width:500px;height:500px;background:#a78bfa;bottom:-200px;right:-100px}
-.b3{width:400px;height:400px;background:#34d399;top:40%;left:60%;opacity:.05}
-
-/* LAYOUT */
-.wrap{position:relative;z-index:1;display:grid;grid-template-columns:220px 1fr;min-height:100vh}
-
-/* SIDEBAR */
-aside{background:var(--s1);border-right:1px solid var(--border);padding:28px 0;display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto}
-.brand{padding:0 20px 28px;border-bottom:1px solid var(--border);margin-bottom:20px}
-.brand-icon{width:36px;height:36px;background:linear-gradient(135deg,var(--blue),var(--purple));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:10px}
-.brand h2{font-weight:700;font-size:15px;letter-spacing:-.3px}
-.brand p{font-size:11px;color:var(--muted);margin-top:2px}
-
-nav{flex:1;padding:0 12px}
-.nav-label{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);padding:0 8px;margin:16px 0 6px}
-.nav-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;color:var(--muted);transition:all .2s;margin-bottom:2px;border:1px solid transparent}
-.nav-item:hover{color:var(--text);background:var(--dim)}
-.nav-item.active{color:var(--text);background:var(--s2);border-color:var(--border)}
-.nav-item .icon{font-size:16px;width:20px;text-align:center}
-.nav-dot{width:5px;height:5px;border-radius:50%;margin-left:auto;opacity:0}
-.nav-item.active .nav-dot{opacity:1;background:var(--blue)}
-
-
-.school-switch{padding:0 20px 16px;border-bottom:1px solid var(--border);margin-bottom:16px}
-.school-switch label{display:block;font-size:10px;letter-spacing:1.4px;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
-.school-switch select,.school-switch input{width:100%;background:var(--dim);border:1px solid var(--border);color:var(--text);padding:7px 9px;border-radius:8px;font-size:12px;font-family:'Outfit',sans-serif}
-.school-switch .mini-actions{display:flex;gap:6px;margin-top:8px}
-.school-switch .mini-actions button{flex:1;padding:6px 8px;font-size:11px}
-.d3-chart{height:260px;width:100%}
-
-.sidebar-bottom{padding:16px 20px;border-top:1px solid var(--border);margin-top:auto}
-.status-chip{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--muted)}
-.sdot{width:6px;height:6px;border-radius:50%;background:var(--muted)}
-.sdot.live{background:var(--green);box-shadow:0 0 6px var(--green);animation:pulse 2s infinite}
-.sdot.load{background:var(--amber);animation:pulse .8s infinite}
-.sdot.err{background:var(--red)}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
-
-/* MAIN */
-main{padding:32px 36px;overflow-x:hidden}
-
-/* TOP BAR */
-.topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:36px}
-.page-title{font-weight:700;font-size:clamp(22px,3vw,32px);letter-spacing:-.5px}
-.page-title span{color:var(--blue)}
-.topbar-actions{display:flex;gap:10px}
-.btn{background:var(--s1);border:1px solid var(--border);color:var(--text);padding:8px 18px;border-radius:8px;font-family:'Outfit',sans-serif;font-size:12px;font-weight:500;cursor:pointer;transition:all .2s;letter-spacing:.3px}
-.btn:hover{border-color:var(--border-h);background:var(--dim)}
-.btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
-.btn.primary:hover{background:#3b7de0}
-
-/* LOADING */
-#s-load{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:120px 0;gap:20px}
-.spinner{width:42px;height:42px;border:2px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
-#s-load p{font-size:12px;color:var(--muted);letter-spacing:2px;text-transform:uppercase}
-
-/* ERROR */
-#s-err{display:none;background:var(--s1);border:1px solid var(--red);border-radius:var(--r);padding:40px;text-align:center;max-width:560px;margin:60px auto}
-#s-err h3{color:var(--red);font-size:20px;margin-bottom:12px}
-#s-err p{color:var(--muted);line-height:1.8;font-size:13px}
-#s-err code{background:var(--dim);padding:2px 6px;border-radius:4px;font-size:11px;font-family:'JetBrains Mono',monospace}
-
-/* SECTIONS */
-.section{display:none}
-.section.active{display:block}
-
-/* KPI STRIP */
-.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:28px}
-.kpi{background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:22px 20px;position:relative;overflow:hidden;transition:all .25s;animation:up .4s ease both}
-.kpi:hover{border-color:var(--border-h);transform:translateY(-2px)}
-.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--kc,var(--blue))}
-.kpi::after{content:'';position:absolute;top:-20px;right:-20px;width:90px;height:90px;background:radial-gradient(circle,var(--kc,var(--blue)),transparent 70%);opacity:.07}
-.kpi-icon{font-size:22px;margin-bottom:10px}
-.kpi-lbl{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
-.kpi-val{font-weight:800;font-size:clamp(28px,3vw,38px);letter-spacing:-1px;line-height:1;color:var(--kc,var(--blue))}
-.kpi-sub{font-size:11px;color:var(--muted);margin-top:6px}
-
-/* GRID 2 COL */
-.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
-.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px}
-@media(max-width:900px){.g2,.g3{grid-template-columns:1fr}}
-
-/* CARD */
-.card{background:var(--s1);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;animation:up .45s ease both}
-.card-head{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
-.card-head h3{font-weight:600;font-size:14px;letter-spacing:-.2px}
-.badge{font-size:10px;background:var(--dim);color:var(--muted);padding:3px 9px;border-radius:100px;font-family:'JetBrains Mono',monospace}
-.card-body{padding:20px}
-.chart-wrap{position:relative;height:210px}
-
-/* TABLE */
-.tbl-wrap{overflow-x:auto;max-height:380px;overflow-y:auto}
-table{width:100%;border-collapse:collapse;font-size:12px}
-thead{position:sticky;top:0;z-index:2}
-th{background:var(--s2);padding:10px 14px;text-align:left;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);white-space:nowrap;cursor:pointer;user-select:none}
-th:hover{color:var(--text)}
-th.s{color:var(--blue)}
-td{padding:10px 14px;border-bottom:1px solid var(--border);white-space:nowrap}
-tr:last-child td{border-bottom:none}
-tr:hover td{background:var(--dim)}
-.n{text-align:right;font-family:'JetBrains Mono',monospace;font-size:11px}
-.pill{display:inline-block;padding:2px 8px;border-radius:100px;font-size:10px;font-weight:600}
-.pill-green{background:rgba(52,211,153,.12);color:var(--green);border:1px solid rgba(52,211,153,.2)}
-.pill-red{background:rgba(248,113,113,.12);color:var(--red);border:1px solid rgba(248,113,113,.2)}
-.pill-amber{background:rgba(251,191,36,.12);color:var(--amber);border:1px solid rgba(251,191,36,.2)}
-.pill-blue{background:rgba(79,142,247,.12);color:var(--blue);border:1px solid rgba(79,142,247,.2)}
-
-/* TOOLBAR */
-.toolbar{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
-.search{background:var(--dim);border:1px solid var(--border);color:var(--text);padding:7px 12px;border-radius:8px;font-family:'Outfit',sans-serif;font-size:12px;outline:none;width:220px;transition:border-color .2s}
-.search:focus{border-color:var(--blue)}
-.search::placeholder{color:var(--muted)}
-.count{font-size:11px;color:var(--muted);margin-left:auto;background:var(--dim);padding:4px 10px;border-radius:100px}
-
-/* PROGRESS BAR */
-.prog-wrap{margin-bottom:12px}
-.prog-label{display:flex;justify-content:space-between;margin-bottom:5px;font-size:12px}
-.prog-label span:last-child{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted)}
-.prog-bar{height:6px;background:var(--dim);border-radius:100px;overflow:hidden}
-.prog-fill{height:100%;border-radius:100px;transition:width 1s ease}
-
-/* AVATAR */
-.av{width:28px;height:28px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0}
-
-/* MONTH NAV */
-.month-nav{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px}
-.month-btn{background:var(--dim);border:1px solid var(--border);color:var(--muted);padding:5px 12px;border-radius:6px;font-size:11px;cursor:pointer;transition:all .2s}
-.month-btn.active,.month-btn:hover{background:var(--blue);border-color:var(--blue);color:#fff}
-
-/* ANIMATIONS */
-@keyframes up{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
-
-/* SCROLLBAR */
-::-webkit-scrollbar{width:5px;height:5px}
-::-webkit-scrollbar-track{background:var(--bg)}
-::-webkit-scrollbar-thumb{background:var(--dim);border-radius:10px}
-::-webkit-scrollbar-thumb:hover{background:var(--muted)}
-
-/* EMPTY STATE */
-.empty{text-align:center;padding:48px 20px;color:var(--muted)}
-.empty .ei{font-size:40px;margin-bottom:12px}
-.empty p{font-size:13px}
-
-/* LAST UPDATED */
-#last-upd{font-size:11px;color:var(--muted);margin-top:32px;padding-top:14px;border-top:1px solid var(--border);text-align:right}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text)}
+.top{background:var(--blue);color:#fff;padding:20px 28px;display:flex;justify-content:space-between;align-items:center}
+.title-wrap{display:flex;gap:16px;align-items:center}
+.logo{width:48px;height:48px;border-radius:50%;background:#fff;color:var(--blue-dark);display:flex;align-items:center;justify-content:center;font-weight:800}
+h1{font-size:46px;line-height:1;letter-spacing:-1px;font-weight:800}
+.sub{opacity:.9;font-size:14px;margin-top:6px}
+.school-tools{display:flex;gap:8px;align-items:center}
+select,input,button{font-family:'Outfit',sans-serif}
+.school-tools select{background:#fff;border:0;border-radius:8px;padding:8px 10px;color:var(--text);min-width:220px}
+.school-tools .btn{background:#123a67;color:#fff;border:1px solid rgba(255,255,255,.2);padding:8px 12px;border-radius:8px;cursor:pointer}
+.tabs{background:#fff;border-bottom:1px solid var(--line);padding:10px 20px;display:flex;gap:8px;flex-wrap:wrap}
+.tab{padding:9px 16px;border-radius:8px;border:1px solid transparent;color:#5f6f87;font-weight:600;cursor:pointer}
+.tab.active{background:var(--blue-dark);color:#fff}
+.container{max-width:1280px;margin:18px auto;padding:0 14px}
+.section{display:none}.section.active{display:block}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px}.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+.card-head{padding:14px 16px;font-size:32px;font-weight:700;letter-spacing:-.4px}
+.card-sub{padding:0 16px 14px;color:var(--muted);font-size:13px}
+.card-title{padding:14px 16px;font-size:31px;font-weight:700;letter-spacing:-.4px}
+.card-body{padding:10px 16px 16px}
+.chart-wrap{position:relative;height:320px}
+.chart-wrap.sm{height:280px}
+.tbl-wrap{max-height:430px;overflow:auto}
+table{width:100%;border-collapse:collapse;font-size:18px}
+th{position:sticky;top:0;background:#183b66;color:#fff;text-align:left;padding:10px 12px;font-size:13px}
+td{padding:9px 12px;border-bottom:1px solid #e6ecf3}
+.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700}
+.b-crit{background:#fce3e3;color:#b53c3c}.b-proc{background:#fff0d8;color:#926500}
+.insight{background:#e5f6fa;border-left:4px solid #2c6bb0;padding:14px 14px;margin-bottom:10px;border-radius:10px}
+.footer{color:#7b8ca4;text-align:center;font-size:12px;margin:18px 0}
+@media(max-width:1100px){.kpis{grid-template-columns:repeat(2,1fr)}.grid-2,.grid-3{grid-template-columns:1fr} h1{font-size:34px}}
 </style>
 </head>
 <body>
-<div class="blob b1"></div>
-<div class="blob b2"></div>
-<div class="blob b3"></div>
+<header class="top">
+  <div class="title-wrap">
+    <div class="logo">NZ</div>
+    <div>
+      <h1>Dashboard Académico — Ciclo Lectivo 2025</h1>
+      <div class="sub" id="hdr-sub">Colegio · Nivel Secundario</div>
+    </div>
+  </div>
+  <div class="school-tools">
+    <select id="school-select" onchange="changeSchool(this.value)"></select>
+    <button class="btn" onclick="addSchool()">+ Colegio</button>
+    <button class="btn" onclick="editSchool()">Editar link</button>
+    <button class="btn" onclick="boot()">↺</button>
+  </div>
+</header>
 
-<div class="wrap">
-  <!-- SIDEBAR -->
-  <aside>
-    <div class="brand">
-      <div class="brand-icon">🎓</div>
-      <h2>EduPanel</h2>
-      <p>Dashboard Escolar</p>
-    </div>
-    <div class="school-switch">
-      <label for="school-select">Colegio activo</label>
-      <select id="school-select" onchange="changeSchool(this.value)"></select>
-      <div class="mini-actions">
-        <button class="btn" onclick="addSchool()">+ Nuevo</button>
-        <button class="btn" onclick="editSchool()">Editar</button>
-      </div>
-    </div>
-    <nav>
-      <div class="nav-label">Panel Ejecutivo</div>
-      <div class="nav-item active" onclick="goTo('resumen-general')"><span class="icon">📊</span> Resumen General<div class="nav-dot"></div></div>
-      <div class="nav-item" onclick="goTo('por-curso')"><span class="icon">🏫</span> Por Curso<div class="nav-dot"></div></div>
-      <div class="nav-item" onclick="goTo('materias-analisis')"><span class="icon">📚</span> Materias<div class="nav-dot"></div></div>
-      <div class="nav-item" onclick="goTo('trayectorias')"><span class="icon">🧭</span> Trayectorias<div class="nav-dot"></div></div>
-      <div class="nav-item" onclick="goTo('asistencia-analisis')"><span class="icon">📅</span> Asistencia<div class="nav-dot"></div></div>
-      <div class="nav-item" onclick="goTo('alerta-academica')"><span class="icon">🚨</span> Alerta Académica<div class="nav-dot"></div></div>
-      <div class="nav-item" onclick="goTo('rankings')"><span class="icon">🏆</span> Rankings<div class="nav-dot"></div></div>
-      <div class="nav-item" onclick="goTo('insights')"><span class="icon">💡</span> Insights Clave<div class="nav-dot"></div></div>
-    </nav>
-    <div class="sidebar-bottom">
-      <div class="status-chip">
-        <div class="sdot load" id="sdot"></div>
-        <span id="stxt">Conectando...</span>
-      </div>
-    </div>
-  </aside>
+<nav class="tabs" id="tabs"></nav>
 
-  <!-- MAIN -->
-  <main>
-    <!-- Loading -->
-    <div id="s-load">
-      <div class="spinner"></div>
-      <p>Cargando datos...</p>
-    </div>
+<div class="container">
+  <div id="s-load" class="card" style="padding:60px;text-align:center">Cargando datos...</div>
+  <div id="s-err" class="card" style="padding:40px;display:none"><h3 style="color:#b42323;margin-bottom:10px">Error de conexión</h3><p id="errmsg"></p></div>
 
-    <!-- Error -->
-    <div id="s-err">
-      <h3>⚠ Error de conexión</h3>
-      <p id="errmsg">No se pudo conectar con el AppScript.<br>
-      Verificá que esté publicado con acceso <code>Anyone</code>.</p>
-      <br>
-      <button class="btn primary" onclick="boot()">Reintentar</button>
+  <section class="section" id="sec-resumen-general">
+    <div class="kpis" id="kpi-resumen"></div>
+    <div class="grid-2" style="margin-bottom:14px">
+      <div class="card"><div class="card-title">Promedio por Curso — 1er y 2do Cuatrimestre vs Final</div><div class="card-body"><div class="chart-wrap"><canvas id="ch-res-cursos"></canvas></div></div></div>
+      <div class="card"><div class="card-title">Distribución de Calificaciones Finales</div><div class="card-body"><div class="chart-wrap"><canvas id="ch-res-dist"></canvas></div></div></div>
     </div>
-
-    <!-- RESUMEN GENERAL -->
-    <div class="section" id="sec-resumen-general">
-      <div class="topbar"><div><div class="page-title">Resumen <span>General</span></div><div style="font-size:12px;color:var(--muted);margin-top:4px">KPIs globales, distribución de notas y promedios.</div></div><div class="topbar-actions"><button class="btn" onclick="boot()">↺ Actualizar</button></div></div>
-      <div class="kpi-grid" id="kpi-resumen-general"></div>
-      <div class="g2">
-        <div class="card"><div class="card-head"><h3>Distribución de Notas</h3></div><div class="card-body"><div class="d3-chart" id="d3-dist-notas"></div></div></div>
-        <div class="card"><div class="card-head"><h3>Promedio por Año/Curso</h3></div><div class="card-body"><div class="d3-chart" id="d3-prom-curso"></div></div></div>
-      </div>
-      <div class="card"><div class="card-head"><h3>Top Promedio por Estudiante</h3></div><div class="tbl-wrap"><table><thead id="th-res-est"></thead><tbody id="tb-res-est"></tbody></table></div></div>
-      <div id="last-upd"></div>
+    <div class="grid-2">
+      <div class="card"><div class="card-title">Promedio por Nivel (Año)</div><div class="card-body"><div class="chart-wrap sm"><canvas id="ch-res-anio"></canvas></div></div></div>
+      <div class="card"><div class="card-title">Distribución de Promedios por Estudiante (1°C)</div><div class="card-body"><div id="d3-prom-est" style="height:300px"></div></div></div>
     </div>
+  </section>
 
-    <div class="section" id="sec-por-curso">
-      <div class="topbar"><div class="page-title">Por Curso</div></div>
-      <div class="card"><div class="card-head"><h3>Comparativa detallada por curso</h3></div><div class="tbl-wrap"><table><thead id="th-curso"></thead><tbody id="tb-curso"></tbody></table></div></div>
+  <section class="section" id="sec-por-curso">
+    <div class="grid-2" style="margin-bottom:14px">
+      <div class="card"><div class="card-title">Cantidad de Alumnos por Curso</div><div class="card-body"><div class="chart-wrap sm"><canvas id="ch-curso-cant"></canvas></div></div></div>
+      <div class="card"><div class="card-title">Evolución 1°C → 2°C → Final por Curso</div><div class="card-body"><div class="chart-wrap sm"><canvas id="ch-curso-evol"></canvas></div></div></div>
     </div>
+    <div class="card"><div class="card-title">Comparativa Detallada por Curso</div><div class="tbl-wrap"><table><thead id="th-curso"></thead><tbody id="tb-curso"></tbody></table></div></div>
+  </section>
 
-    <div class="section" id="sec-materias-analisis">
-      <div class="topbar"><div class="page-title">Materias</div></div>
-      <div class="g2">
-        <div class="card"><div class="card-head"><h3>Más fáciles / más difíciles</h3></div><div class="card-body"><div class="d3-chart" id="d3-materias-rank"></div></div></div>
-        <div class="card"><div class="card-head"><h3>Materias con más desaprobados</h3></div><div class="card-body"><div class="d3-chart" id="d3-desaprobados"></div></div></div>
-      </div>
-      <div class="card"><div class="tbl-wrap"><table><thead id="th-mat"></thead><tbody id="tb-mat"></tbody></table></div></div>
+  <section class="section" id="sec-materias">
+    <div class="grid-2" style="margin-bottom:14px">
+      <div class="card"><div class="card-title">Top 10 Materias — Mayor Promedio (1°C)</div><div class="card-body"><div class="chart-wrap sm"><canvas id="ch-mat-top"></canvas></div></div></div>
+      <div class="card"><div class="card-title">Top 10 Materias — Menor Promedio (1°C)</div><div class="card-body"><div class="chart-wrap sm"><canvas id="ch-mat-low"></canvas></div></div></div>
     </div>
+    <div class="card"><div class="card-title">Materias con Más Calificaciones Finales Inferiores a 7</div><div class="card-body"><div class="chart-wrap"><canvas id="ch-mat-risk"></canvas></div></div></div>
+  </section>
 
-    <div class="section" id="sec-trayectorias">
-      <div class="topbar"><div class="page-title">Trayectorias</div></div>
-      <div class="g2">
-        <div class="card"><div class="card-head"><h3>TEA / TEP / TED por cuatrimestre</h3></div><div class="card-body"><div class="d3-chart" id="d3-tray-cuatr"></div></div></div>
-        <div class="card"><div class="card-head"><h3>TEA / TEP / TED por curso</h3></div><div class="card-body"><div class="d3-chart" id="d3-tray-curso"></div></div></div>
-      </div>
+  <section class="section" id="sec-trayectorias">
+    <div class="grid-3" id="kpi-tray" style="margin-bottom:14px"></div>
+    <div class="grid-2" style="margin-bottom:14px">
+      <div class="card"><div class="card-title">Distribución de Trayectorias — 1er Cuatrimestre</div><div class="card-body"><div class="chart-wrap sm"><canvas id="ch-tray-c1"></canvas></div></div></div>
+      <div class="card"><div class="card-title">Distribución de Trayectorias — 2do Cuatrimestre</div><div class="card-body"><div class="chart-wrap sm"><canvas id="ch-tray-c2"></canvas></div></div></div>
     </div>
+    <div class="card"><div class="card-title">Trayectorias por Curso (1°C)</div><div class="card-body"><div class="chart-wrap"><canvas id="ch-tray-curso"></canvas></div></div></div>
+  </section>
 
-    <div class="section" id="sec-asistencia-analisis">
-      <div class="topbar"><div class="page-title">Asistencia</div></div>
-      <div class="g2">
-        <div class="card"><div class="card-head"><h3>Inasistencias por curso</h3></div><div class="card-body"><div class="d3-chart" id="d3-inas-curso"></div></div></div>
-        <div class="card"><div class="card-head"><h3>Comparativa cuatrimestral</h3></div><div class="card-body"><div class="d3-chart" id="d3-inas-cuatr"></div></div></div>
-      </div>
-      <div class="card"><div class="card-head"><h3>Correlación asistencia-rendimiento</h3></div><div class="card-body"><div id="corr-text"></div></div></div>
+  <section class="section" id="sec-asistencia">
+    <div class="grid-2" style="margin-bottom:14px">
+      <div class="card"><div class="card-title">Inasistencias Promedio por Curso (Total Anual)</div><div class="card-body"><div class="chart-wrap sm"><canvas id="ch-asi-curso"></canvas></div></div></div>
+      <div class="card"><div class="card-title">Correlación: Inasistencias vs Promedio Académico</div><div class="card-body"><div class="chart-wrap sm"><canvas id="ch-asi-corr"></canvas></div></div></div>
     </div>
+    <div class="card"><div class="card-title">Inasistencias por Cuatrimestre</div><div class="card-body"><div class="chart-wrap sm"><canvas id="ch-asi-cuat"></canvas></div></div></div>
+  </section>
 
-    <div class="section" id="sec-alerta-academica">
-      <div class="topbar"><div class="page-title">Alerta Académica</div></div>
-      <div class="g2">
-        <div class="card"><div class="card-head"><h3>Alumnos con promedio bajo</h3></div><div class="tbl-wrap"><table><thead id="th-alert-al"></thead><tbody id="tb-alert-al"></tbody></table></div></div>
-        <div class="card"><div class="card-head"><h3>Materias con más problemas</h3></div><div class="tbl-wrap"><table><thead id="th-alert-mat"></thead><tbody id="tb-alert-mat"></tbody></table></div></div>
-      </div>
+  <section class="section" id="sec-alerta-academica">
+    <div class="grid-3" id="kpi-alerta" style="margin-bottom:14px"></div>
+    <div class="grid-2" style="margin-bottom:14px">
+      <div class="card"><div class="card-title">Estudiantes en Riesgo por Curso</div><div class="card-body"><div class="chart-wrap sm"><canvas id="ch-alerta-curso"></canvas></div></div></div>
+      <div class="card"><div class="card-title">Materias con Más Desaprobados (Nota Final &lt; 7)</div><div class="card-body"><div class="chart-wrap sm"><canvas id="ch-alerta-mat"></canvas></div></div></div>
     </div>
+    <div class="card"><div class="card-title">Alumnos con Promedio General Más Bajo (1°C)</div><div class="tbl-wrap"><table><thead id="th-alerta"></thead><tbody id="tb-alerta"></tbody></table></div></div>
+  </section>
 
-    <div class="section" id="sec-rankings">
-      <div class="topbar"><div class="page-title">Rankings</div></div>
-      <div class="g2">
-        <div class="card"><div class="card-head"><h3>Top 15 mejores promedios</h3></div><div class="tbl-wrap"><table><thead id="th-top15"></thead><tbody id="tb-top15"></tbody></table></div></div>
-        <div class="card"><div class="card-head"><h3>Ranking de cursos</h3></div><div class="tbl-wrap"><table><thead id="th-rank-curso"></thead><tbody id="tb-rank-curso"></tbody></table></div></div>
-      </div>
+  <section class="section" id="sec-rankings">
+    <div class="grid-2">
+      <div class="card"><div class="card-title">Top 15 Mejores Promedios (1er Cuatrimestre)</div><div class="tbl-wrap"><table><thead id="th-top15"></thead><tbody id="tb-top15"></tbody></table></div></div>
+      <div class="card"><div class="card-title">Ranking de Cursos por Promedio Final</div><div class="card-body"><div class="chart-wrap sm"><canvas id="ch-rank-cursos"></canvas></div></div></div>
     </div>
+  </section>
 
-    <div class="section" id="sec-insights">
-      <div class="topbar"><div class="page-title">Insights Clave</div></div>
-      <div class="card"><div class="card-body"><ol id="insights-list" style="padding-left:18px;line-height:1.9"></ol></div></div>
-    </div>
+  <section class="section" id="sec-insights">
+    <div id="insights-list"></div>
+  </section>
 
-  </main>
+  <div class="footer" id="last-upd"></div>
 </div>
 
 <script>
-const DEFAULT_SCHOOLS = [{ id:'default', name:'Colegio Principal', api:'https://script.google.com/macros/s/AKfycbzUjY4y_BWKMfmTdRV3F6RFqLizlyjnFIXjCogoc740qNtrBsi9AYM-RKjgk8Q0qv_CXw/exec' }];
+const DEFAULT_SCHOOLS=[{id:'default',name:'Colegio Principal',api:'https://script.google.com/macros/s/AKfycbzUjY4y_BWKMfmTdRV3F6RFqLizlyjnFIXjCogoc740qNtrBsi9AYM-RKjgk8Q0qv_CXw/exec'}];
 const SCHOOL_KEY='edupanel_schools_v1';
-const PAL = ['#4f8ef7','#34d399','#fbbf24','#f87171','#a78bfa','#22d3ee','#fb923c','#e879f9'];
-let DB = {}, charts = {}, sortState = {}, tableData = {};
-let currentMonth = null, schools = [], currentSchoolId = 'default';
+const TABS=[['resumen-general','Resumen General'],['por-curso','Por Curso'],['materias','Materias'],['trayectorias','Trayectorias'],['asistencia','Asistencia'],['alerta-academica','Alerta Académica'],['rankings','Rankings'],['insights','Insights Clave']];
+let schools=[], currentSchoolId='default', DB={}, charts={};
 
+function loadSchools(){
+  try{schools=JSON.parse(localStorage.getItem(SCHOOL_KEY)||'null')||DEFAULT_SCHOOLS}catch{schools=[...DEFAULT_SCHOOLS]}
+  if(!schools.length) schools=[...DEFAULT_SCHOOLS];
+  currentSchoolId=localStorage.getItem('edupanel_school_active')||schools[0].id;
+  if(!schools.some(s=>s.id===currentSchoolId)) currentSchoolId=schools[0].id;
+  document.getElementById('school-select').innerHTML=schools.map(s=>`<option value="${s.id}" ${s.id===currentSchoolId?'selected':''}>${s.name}</option>`).join('');
+}
+function activeSchool(){return schools.find(s=>s.id===currentSchoolId)||schools[0]}
+function persistSchools(){localStorage.setItem(SCHOOL_KEY,JSON.stringify(schools));localStorage.setItem('edupanel_school_active',currentSchoolId)}
+function changeSchool(id){currentSchoolId=id;persistSchools();boot()}
+function addSchool(){const n=prompt('Nombre del colegio');if(!n)return;const a=prompt('Link AppScript /exec');if(!a)return;const id='s'+Date.now();schools.push({id,name:n.trim(),api:a.trim()});currentSchoolId=id;persistSchools();loadSchools();boot()}
+function editSchool(){const s=activeSchool();const n=prompt('Editar nombre',s.name);if(!n)return;const a=prompt('Editar link AppScript',s.api);if(!a)return;s.name=n.trim();s.api=a.trim();persistSchools();loadSchools();boot()}
 
-function loadSchools() {
-  try {
-    schools = JSON.parse(localStorage.getItem(SCHOOL_KEY) || 'null') || DEFAULT_SCHOOLS;
-  } catch (_) { schools = [...DEFAULT_SCHOOLS]; }
-  if (!Array.isArray(schools) || !schools.length) schools = [...DEFAULT_SCHOOLS];
-  currentSchoolId = localStorage.getItem('edupanel_school_active') || schools[0].id;
-  if (!schools.some(s=>s.id===currentSchoolId)) currentSchoolId = schools[0].id;
-  renderSchoolSelector();
+function bootTabs(){
+  const tabs=document.getElementById('tabs');
+  tabs.innerHTML=TABS.map(([id,l],i)=>`<div class="tab ${i===0?'active':''}" onclick="goTo('${id}')">${l}</div>`).join('');
 }
-function saveSchools() {
-  localStorage.setItem(SCHOOL_KEY, JSON.stringify(schools));
-  localStorage.setItem('edupanel_school_active', currentSchoolId);
-}
-function renderSchoolSelector() {
-  const sel = document.getElementById('school-select');
-  if (!sel) return;
-  sel.innerHTML = schools.map(s=>`<option value="${s.id}" ${s.id===currentSchoolId?'selected':''}>${s.name}</option>`).join('');
-}
-function activeSchool(){ return schools.find(s=>s.id===currentSchoolId) || schools[0]; }
-function changeSchool(id){ currentSchoolId=id; saveSchools(); loadSchools();
-boot(); }
-function addSchool(){
-  const name = prompt('Nombre del colegio');
-  if (!name) return;
-  const api = prompt('Pegá el link de AppScript (deploy /exec)');
-  if (!api) return;
-  const id = 's'+Date.now();
-  schools.push({id,name:name.trim(),api:api.trim()});
-  currentSchoolId=id; saveSchools(); renderSchoolSelector(); loadSchools();
-boot();
-}
-function editSchool(){
-  const s = activeSchool(); if (!s) return;
-  const name = prompt('Editar nombre del colegio', s.name);
-  if (!name) return;
-  const api = prompt('Editar link AppScript', s.api);
-  if (!api) return;
-  s.name=name.trim(); s.api=api.trim(); saveSchools(); renderSchoolSelector(); loadSchools();
-boot();
-}
-
-// ─── BOOT ───
-async function boot() {
-  setStatus('load','Cargando...');
-  show('s-load'); hide('s-err');
+function goTo(id){
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('sec-'+id)?.classList.add('active');
+  const t=[...document.querySelectorAll('.tab')].find(x=>x.textContent.trim()===TABS.find(v=>v[0]===id)?.[1]); if(t) t.classList.add('active');
+}
 
-  try {
-    const school = activeSchool();
-    const r = await fetch(school.api, {cache:'no-store'});
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    DB = await r.json();
-    // Normalize dates
-    ['alumnos','materias','calificaciones','asistencia','config'].forEach(k=>{
-      if(Array.isArray(DB[k])) DB[k] = DB[k].map(row=>{
-        const nr={};
-        Object.entries(row).forEach(([k,v])=>{
-          nr[k] = v instanceof Date ? v.toLocaleDateString('es-AR') : (v===''||v===null||v===undefined?'':v);
-        });
-        return nr;
-      });
-    });
+async function boot(){
+  document.getElementById('s-load').style.display='block'; document.getElementById('s-err').style.display='none';
+  try{
+    const r=await fetch(activeSchool().api,{cache:'no-store'}); if(!r.ok) throw new Error('HTTP '+r.status);
+    DB=await r.json();
     buildAll();
-    setStatus('live','En vivo');
-    hide('s-load');
+    document.getElementById('s-load').style.display='none';
     goTo('resumen-general');
-    document.getElementById('last-upd').textContent =
-      `Actualizado (${activeSchool().name}): ` + new Date().toLocaleString('es-AR');
-  } catch(e) {
-    setStatus('err','Error');
-    document.getElementById('errmsg').innerHTML =
-      `<b style="color:var(--red)">${e.message}</b><br><br>
-       Asegurate que el script esté publicado con acceso <code>Anyone</code>.`;
-    hide('s-load'); show('s-err');
+    document.getElementById('last-upd').textContent=`Dashboard generado automáticamente · Datos extraídos de ${ (DB.calificaciones||[]).length } boletines · ${activeSchool().name}`;
+  }catch(e){
+    document.getElementById('s-load').style.display='none';
+    document.getElementById('s-err').style.display='block';
+    document.getElementById('errmsg').innerHTML=e.message;
   }
 }
 
-// ─── BUILD ALL ───
-function buildAll() {
-  const ds = buildDataset();
-  buildResumenGeneral(ds);
-  buildPorCurso(ds);
-  buildMateriasAnalisis(ds);
-  buildTrayectorias(ds);
-  buildAsistenciaAnalisis(ds);
-  buildAlertaAcademica(ds);
-  buildRankings(ds);
-  buildInsights(ds);
-}
-
-function cursoCol(rows){
-  if (!rows.length) return null;
-  return Object.keys(rows[0]).find(h=>/curso|anio|año|division|seccion|sección|grade|class/i.test(h));
-}
-function firstMatching(rows, regex){
-  if (!rows.length) return null;
-  return Object.keys(rows[0]).find(h=>regex.test(h));
-}
-function avg(arr){ return arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0; }
+function parseN(v){return parseFloat(String(v??'').replace(/[^\d.\-]/g,''))}
+function avg(a){return a.length?a.reduce((x,y)=>x+y,0)/a.length:0}
+function findCol(rows,re){if(!rows.length)return null;return Object.keys(rows[0]).find(h=>re.test(h))}
+function alumnoCol(rows){return findCol(rows,/alumno|estudiante|nombre|name/i)}
+function cursoCol(rows){return findCol(rows,/curso|año|anio|division|seccion|class|grado/i)}
+function materiaCol(rows){return findCol(rows,/materia|asignatura|subject/i)}
+function notaCol(rows){return findCol(rows,/nota|prom|calif|score|grade|final/i)}
 
 function buildDataset(){
-  const cal = DB.calificaciones||[];
-  const as = DB.asistencia||[];
-  const studentKey = alumnoCol(cal) || alumnoCol(DB.alumnos||[]) || 'Alumno';
-  const courseKey = cursoCol(cal) || cursoCol(DB.alumnos||[]) || firstMatching(cal,/año|anio/i);
-  const subjectKey = materiaCol(cal) || 'Materia';
-  const finalKey = notaCol(cal);
-  const c1Key = firstMatching(cal,/1\s*[°º]?\s*c|primer\s*cuat|cuatrimestre\s*1|parcial\s*1|q1/i);
-  const c2Key = firstMatching(cal,/2\s*[°º]?\s*c|segundo\s*cuat|cuatrimestre\s*2|parcial\s*2|q2/i);
-
-  const records = cal.map(r=>{
-    const student = String(r[studentKey]||'—');
-    const course = String((courseKey && r[courseKey]) || 'Sin curso');
-    const subject = String(r[subjectKey]||'Sin materia');
-    const g1 = c1Key ? parseN(r[c1Key]) : NaN;
-    const g2 = c2Key ? parseN(r[c2Key]) : NaN;
-    const gf = finalKey ? parseN(r[finalKey]) : NaN;
-    const values=[g1,g2,gf].filter(v=>!isNaN(v));
-    return {student,course,subject,g1,g2,gf,avg: values.length?avg(values):NaN};
-  }).filter(r=>r.student!=='—' && !isNaN(r.avg));
-
-  const asCourseKey = cursoCol(as) || courseKey;
-  const asStudentKey = alumnoCol(as) || studentKey;
-  const inasKey = firstMatching(as,/inasist|ausenc|falt/i);
-  const asistKey = asistCol(as);
-  const asC1Key = firstMatching(as,/1\s*[°º]?\s*c|primer\s*cuat|cuatrimestre\s*1|q1/i);
-  const asC2Key = firstMatching(as,/2\s*[°º]?\s*c|segundo\s*cuat|cuatrimestre\s*2|q2/i);
-
-  const attendance = as.map(r=>{
-    const student = String((asStudentKey && r[asStudentKey]) || '—');
-    const course = String((asCourseKey && r[asCourseKey]) || 'Sin curso');
-    const inas = inasKey ? parseN(r[inasKey]) : (asistKey ? (100-(parseN(r[asistKey])||0))/10 : NaN);
-    const c1 = asC1Key ? parseN(r[asC1Key]) : NaN;
-    const c2 = asC2Key ? parseN(r[asC2Key]) : NaN;
-    return {student,course,inas:isNaN(inas)?0:inas,c1,c2};
-  });
-
-  return {records, attendance};
+  const cal=DB.calificaciones||[], as=DB.asistencia||[];
+  const aCol=alumnoCol(cal)||alumnoCol(DB.alumnos||[])||'Alumno';
+  const cCol=cursoCol(cal)||cursoCol(DB.alumnos||[])||Object.keys(cal[0]||{})[0];
+  const mCol=materiaCol(cal)||Object.keys(cal[0]||{})[1];
+  const nF=notaCol(cal)||Object.keys(cal[0]||{})[2];
+  const n1=findCol(cal,/1\s*[°º]?\s*c|primer|q1/i) || nF;
+  const n2=findCol(cal,/2\s*[°º]?\s*c|segundo|q2/i) || nF;
+  const rows=cal.map(r=>({al:String(r[aCol]||'—'),curso:String(r[cCol]||'—'),materia:String(r[mCol]||'—'),n1:parseN(r[n1]),n2:parseN(r[n2]),nf:parseN(r[nF])})).filter(r=>r.al!=='—');
+  const iCol=findCol(as,/inasist|ausenc|falt/i); const pCol=findCol(as,/asistencia|present|attendance/i);
+  const asRows=as.map(r=>({al:String(r[alumnoCol(as)||aCol]||'—'),curso:String(r[cursoCol(as)||cCol]||'—'),inas:iCol?parseN(r[iCol]):(100-(parseN(r[pCol])||0))/10,c1:parseN(r[findCol(as,/1\s*[°º]?\s*c|primer|q1/i)]),c2:parseN(r[findCol(as,/2\s*[°º]?\s*c|segundo|q2/i)])}));
+  return {rows,asRows};
 }
 
-function buildResumenGeneral(ds){
-  const k = document.getElementById('kpi-resumen-general');
-  const rec = ds.records;
-  const students = [...new Set(rec.map(r=>r.student))];
-  const courses = [...new Set(rec.map(r=>r.course))];
-  const apro = rec.filter(r=>r.avg>=6).length;
-  const prom = avg(rec.map(r=>r.avg));
-  k.innerHTML='';
-  [
-    {icon:'👥',lbl:'Estudiantes',val:students.length,sub:'totales',c:'#4f8ef7'},
-    {icon:'🏫',lbl:'Cursos',val:courses.length,sub:'activos',c:'#a78bfa'},
-    {icon:'📝',lbl:'Registros',val:rec.length,sub:'evaluaciones',c:'#fbbf24'},
-    {icon:'⭐',lbl:'Promedio Global',val:prom.toFixed(2),sub:'sobre 10',c:'#34d399'},
-    {icon:'✅',lbl:'Aprobación',val:(rec.length?apro*100/rec.length:0).toFixed(1)+'%',sub:'registros',c:'#22d3ee'},
-  ].forEach((it,i)=>addKPI(k,it,i));
-
-  const dist = {'1-4':0,'5-6':0,'7-8':0,'9-10':0};
-  rec.forEach(r=>{if(r.avg<=4)dist['1-4']++; else if(r.avg<=6)dist['5-6']++; else if(r.avg<=8)dist['7-8']++; else dist['9-10']++;});
-  renderD3Donut('d3-dist-notas', Object.entries(dist).map(([label,value],i)=>({label,value,color:PAL[i%PAL.length]})));
-
-  const byCourse={}; rec.forEach(r=>{(byCourse[r.course]=byCourse[r.course]||[]).push(r.avg)});
-  const courseBars=Object.keys(byCourse).map((c,i)=>({label:c,value:+avg(byCourse[c]).toFixed(2),color:PAL[i%PAL.length]}));
-  renderD3Bar('d3-prom-curso', courseBars, 10);
-
-  const byStudent={}; rec.forEach(r=>{(byStudent[r.student]=byStudent[r.student]||[]).push(r.avg)});
-  const top = Object.entries(byStudent).map(([a,vs])=>({Estudiante:a,Promedio:+avg(vs).toFixed(2)})).sort((a,b)=>b.Promedio-a.Promedio).slice(0,20);
-  tableData['res-est']={rows:top,headers:['Estudiante','Promedio']};
-  renderTHead('th-res-est', ['Estudiante','Promedio']);
-  renderTBody('tb-res-est', top, ['Estudiante','Promedio']);
+function killCharts(){Object.values(charts).forEach(c=>c.destroy&&c.destroy());charts={}}
+function mk(id,type,data,opts={}){const el=document.getElementById(id);if(!el)return; if(charts[id]) charts[id].destroy(); charts[id]=new Chart(el,{type,data,options:Object.assign({responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{font:{size:11}}}}},opts)});}
+function d3Donut(id,data){const host=d3.select('#'+id);host.selectAll('*').remove();const w=host.node().clientWidth||420,h=300,r=Math.min(w,h)/2-14;const g=host.append('svg').attr('width',w).attr('height',h).append('g').attr('transform',`translate(${w/2},${h/2})`);const pie=d3.pie().value(d=>d.value)(data);const arc=d3.arc().innerRadius(r*.55).outerRadius(r);g.selectAll('path').data(pie).enter().append('path').attr('d',arc).attr('fill',d=>d.data.color).attr('stroke','#fff').attr('stroke-width',2);
+  const lg=host.append('div').style('display','flex').style('gap','10px').style('justify-content','center').style('font-size','12px'); data.forEach(d=>lg.append('div').html(`<span style="display:inline-block;width:10px;height:10px;background:${d.color};border-radius:2px"></span> ${d.label} (${d.value})`));
 }
 
-function buildPorCurso(ds){
-  const rec=ds.records, att=ds.attendance;
-  const by={};
-  rec.forEach(r=>{by[r.course]=by[r.course]||{c1:[],c2:[],f:[],risk:new Set(),students:new Set()}; by[r.course].students.add(r.student); if(!isNaN(r.g1))by[r.course].c1.push(r.g1); if(!isNaN(r.g2))by[r.course].c2.push(r.g2); if(!isNaN(r.gf))by[r.course].f.push(r.gf); if(r.avg<6)by[r.course].risk.add(r.student);});
-  const inasBy={}; att.forEach(a=>{(inasBy[a.course]=inasBy[a.course]||[]).push(a.inas);});
-  const rows=Object.entries(by).map(([course,v])=>{
-    const p1=avg(v.c1), p2=avg(v.c2), pf=avg(v.f.length?v.f:[...v.c1,...v.c2]);
-    return {
-      Curso:course,
-      'Prom 1°C':p1.toFixed(2),
-      'Prom 2°C':p2.toFixed(2),
-      'Prom Final':pf.toFixed(2),
-      'Var 1→2':(p2-p1).toFixed(2),
-      'Var 2→F':(pf-p2).toFixed(2),
-      'Alumnos en riesgo':v.risk.size,
-      'Inasistencias prom':avg(inasBy[course]||[]).toFixed(2)
-    };
-  }).sort((a,b)=>parseN(b['Prom Final'])-parseN(a['Prom Final']));
-  const h=['Curso','Prom 1°C','Prom 2°C','Prom Final','Var 1→2','Var 2→F','Alumnos en riesgo','Inasistencias prom'];
-  tableData.curso={rows,headers:h};
-  renderTHead('th-curso',h); renderTBody('tb-curso',rows,h);
-}
+function renderTable(thId,tbId,headers,rows){document.getElementById(thId).innerHTML='<tr>'+headers.map(h=>`<th>${h}</th>`).join('')+'</tr>';document.getElementById(tbId).innerHTML=rows.map(r=>'<tr>'+headers.map(h=>`<td>${r[h]??''}</td>`).join('')+'</tr>').join('')}
+function kpi(container,items){const el=document.getElementById(container);el.innerHTML='';items.forEach(i=>{const c=document.createElement('div');c.className='card';c.innerHTML=`<div class="card-head" style="color:${i.c}">${i.v}</div><div class="card-sub"><b>${i.t}</b><br>${i.s}</div>`;el.appendChild(c);});}
 
-function buildMateriasAnalisis(ds){
-  const by={}; ds.records.forEach(r=>{by[r.subject]=by[r.subject]||{vals:[],des:0};by[r.subject].vals.push(r.avg); if(r.avg<6)by[r.subject].des++;});
-  const rows=Object.entries(by).map(([m,v])=>({Materia:m,Promedio:+avg(v.vals).toFixed(2),Desaprobados:v.des,Registros:v.vals.length})).sort((a,b)=>b.Promedio-a.Promedio);
-  const rankData=rows.slice(0,10).map((r,i)=>({label:r.Materia,value:r.Promedio,color:PAL[i%PAL.length]}));
-  renderD3Bar('d3-materias-rank', rankData, 10);
-  const desData=[...rows].sort((a,b)=>b.Desaprobados-a.Desaprobados).slice(0,10).map((r,i)=>({label:r.Materia,value:r.Desaprobados,color:PAL[i%PAL.length]}));
-  renderD3Bar('d3-desaprobados', desData, Math.max(5,...desData.map(d=>d.value)));
-  const h=['Materia','Promedio','Desaprobados','Registros']; tableData.mat={rows,headers:h}; renderTHead('th-mat',h); renderTBody('tb-mat',rows,h);
-}
+function buildAll(){
+  killCharts();
+  const ds=buildDataset();
+  const rows=ds.rows, asRows=ds.asRows;
+  const students=[...new Set(rows.map(r=>r.al))], courses=[...new Set(rows.map(r=>r.curso))];
+  document.getElementById('hdr-sub').textContent=`${activeSchool().name} · Nivel Secundario · ${courses.length} cursos · ${students.length} estudiantes`;
 
-function buildTrayectorias(ds){
-  const rec=ds.records;
-  const classify=v=>v>=7?'TEA':v>=6?'TEP':'TED';
-  const byCourse={}, byCuat={'1C':{TEA:0,TEP:0,TED:0},'2C':{TEA:0,TEP:0,TED:0}};
-  rec.forEach(r=>{
-    const tr=classify(r.avg);
-    byCourse[r.course]=byCourse[r.course]||{TEA:0,TEP:0,TED:0};
-    byCourse[r.course][tr]++;
-    if(!isNaN(r.g1)) byCuat['1C'][classify(r.g1)]++;
-    if(!isNaN(r.g2)) byCuat['2C'][classify(r.g2)]++;
-  });
-  const cuatData=['1C','2C'].flatMap((c,idx)=>['TEA','TEP','TED'].map((t,i)=>({label:`${c}-${t}`,value:byCuat[c][t],color:PAL[(idx*3+i)%PAL.length]})));
-  renderD3Bar('d3-tray-cuatr', cuatData, Math.max(5,...cuatData.map(d=>d.value)));
-  const courseData=Object.entries(byCourse).slice(0,12).map(([c,v],i)=>({label:c,value:v.TEA*3+v.TEP*2+v.TED,color:PAL[i%PAL.length]}));
-  renderD3Bar('d3-tray-curso', courseData, Math.max(5,...courseData.map(d=>d.value)));
-}
+  // resumen
+  const avgF=avg(rows.map(r=>r.nf).filter(v=>!isNaN(v))); const risk=rows.filter(r=>r.nf<7).length;
+  const inasMap={};asRows.forEach(a=>{(inasMap[a.al]=inasMap[a.al]||[]).push(a.inas)}); const highAbs=Object.values(inasMap).filter(v=>avg(v)>=20).length;
+  const tea=rows.filter(r=>r.n1>=8).length;
+  kpi('kpi-resumen',[
+    {v:students.length,t:'ESTUDIANTES',s:`${courses.length} cursos`,c:'#1f4577'},
+    {v:avgF.toFixed(2),t:'PROMEDIO FINAL GENERAL',s:`1°C ${avg(rows.map(r=>r.n1)).toFixed(2)} · 2°C ${avg(rows.map(r=>r.n2)).toFixed(2)}`,c:'#3ea66d'},
+    {v:risk,t:'ESTUDIANTES EN RIESGO',s:'con alguna materia < 7',c:'#dc4f4f'},
+    {v:((highAbs/(students.length||1))*100).toFixed(1)+'%',t:'AUSENTISMO ELEVADO',s:`${highAbs} alumnos con >20 inasistencias`,c:'#dc4f4f'},
+    {v:((tea/(rows.length||1))*100).toFixed(1)+'%',t:'TEA 1ER CUATRIMESTRE',s:'Trayectoria Educativa Avanzada',c:'#1f4577'}
+  ]);
+  const byCourse={}; rows.forEach(r=>{byCourse[r.curso]=byCourse[r.curso]||{n1:[],n2:[],nf:[],als:new Set()};byCourse[r.curso].n1.push(r.n1);byCourse[r.curso].n2.push(r.n2);byCourse[r.curso].nf.push(r.nf);byCourse[r.curso].als.add(r.al)});
+  const cl=Object.keys(byCourse);
+  mk('ch-res-cursos','bar',{labels:cl,datasets:[
+    {label:'1er Cuatrimestre',data:cl.map(c=>avg(byCourse[c].n1)),backgroundColor:'#3c74b0'},
+    {label:'2do Cuatrimestre',data:cl.map(c=>avg(byCourse[c].n2)),backgroundColor:'#62a0de'},
+    {label:'Final',data:cl.map(c=>avg(byCourse[c].nf)),backgroundColor:'#59aa7b'}
+  ]},{scales:{y:{min:5,max:10}}});
+  const bins=['3','4','5','6','7','8','9','10'];
+  const d1=Object.fromEntries(bins.map(b=>[b,0])), df=Object.fromEntries(bins.map(b=>[b,0]));
+  rows.forEach(r=>{const a=Math.round(r.n1),f=Math.round(r.nf);if(d1[a]!=null)d1[a]++;if(df[f]!=null)df[f]++;});
+  mk('ch-res-dist','bar',{labels:bins,datasets:[{label:'1er Cuatrimestre',data:bins.map(b=>d1[b]),backgroundColor:'#7398c8'},{label:'Final',data:bins.map(b=>df[b]),backgroundColor:'#7eb98f'}]});
+  const byYear={}; cl.forEach(c=>{const y=(c.match(/\d+/)||['?'])[0]+'° Año'; byYear[y]=byYear[y]||[]; byYear[y].push(avg(byCourse[c].nf));});
+  const yl=Object.keys(byYear);
+  mk('ch-res-anio','bar',{labels:yl,datasets:[{label:'Promedio',data:yl.map(y=>avg(byYear[y])),backgroundColor:yl.map((_,i)=>['#3a6fa9','#4a91cf','#d6a233','#3ea66d','#e63b3b','#cf3f3f'][i%6])}]},{plugins:{legend:{display:false}},scales:{y:{min:5,max:10}}});
+  const byStudent={}; rows.forEach(r=>{(byStudent[r.al]=byStudent[r.al]||[]).push(r.n1)}); const bucket={'< 6':0,'6-7':0,'7-8':0,'8-9':0,'9-10':0};
+  Object.values(byStudent).map(v=>avg(v)).forEach(v=>{if(v<6)bucket['< 6']++;else if(v<7)bucket['6-7']++;else if(v<8)bucket['7-8']++;else if(v<9)bucket['8-9']++;else bucket['9-10']++;});
+  d3Donut('d3-prom-est',Object.entries(bucket).map(([label,value],i)=>({label,value,color:['#e53e3e','#ea8a34','#d8a52f','#4794d2','#3fa46b'][i]})));
 
-function buildAsistenciaAnalisis(ds){
-  const att=ds.attendance, rec=ds.records;
-  const byCourse={}; att.forEach(a=>{(byCourse[a.course]=byCourse[a.course]||[]).push(a.inas)});
-  const courseData=Object.keys(byCourse).map((c,i)=>({label:c,value:+avg(byCourse[c]).toFixed(2),color:PAL[i%PAL.length]}));
-  renderD3Bar('d3-inas-curso', courseData, Math.max(5,...courseData.map(d=>d.value)));
+  // por curso
+  mk('ch-curso-cant','bar',{labels:cl,datasets:[{label:'Alumnos',data:cl.map(c=>byCourse[c].als.size),backgroundColor:'#5d87bb'}]},{indexAxis:'y',plugins:{legend:{display:false}}});
+  mk('ch-curso-evol','line',{labels:cl,datasets:[{label:'1er C.',data:cl.map(c=>avg(byCourse[c].n1)),borderColor:'#2f67a7',backgroundColor:'#2f67a7',tension:.3},{label:'2do C.',data:cl.map(c=>avg(byCourse[c].n2)),borderColor:'#6aa8de',backgroundColor:'#6aa8de',borderDash:[6,4],tension:.3},{label:'Final',data:cl.map(c=>avg(byCourse[c].nf)),borderColor:'#4fa977',backgroundColor:'#4fa977',tension:.3}]},{scales:{y:{min:5,max:10}}});
+  const inByCourse={}; asRows.forEach(a=>{(inByCourse[a.curso]=inByCourse[a.curso]||[]).push(a.inas)});
+  const tCurso=cl.map(c=>({Curso:c,Alumnos:byCourse[c].als.size,'Prom 1°C':avg(byCourse[c].n1).toFixed(2),'Prom 2°C':avg(byCourse[c].n2).toFixed(2),'Prom Final':avg(byCourse[c].nf).toFixed(2),'Variación':(avg(byCourse[c].nf)-avg(byCourse[c].n1)).toFixed(2),'En Riesgo':rows.filter(r=>r.curso===c&&r.nf<7).length,'Inasist. Promedio':avg(inByCourse[c]||[]).toFixed(1)}));
+  renderTable('th-curso','tb-curso',['Curso','Alumnos','Prom 1°C','Prom 2°C','Prom Final','Variación','En Riesgo','Inasist. Promedio'],tCurso);
 
-  const c1=att.map(a=>a.c1).filter(v=>!isNaN(v)); const c2=att.map(a=>a.c2).filter(v=>!isNaN(v));
-  const cuat=[{label:'1°C',value:+avg(c1).toFixed(2),color:'#4f8ef7'},{label:'2°C',value:+avg(c2).toFixed(2),color:'#34d399'}];
-  renderD3Bar('d3-inas-cuatr', cuat, Math.max(5,...cuat.map(d=>d.value)));
+  // materias
+  const byMat={}; rows.forEach(r=>{byMat[r.materia]=byMat[r.materia]||{n1:[],nf:[],bad:0};byMat[r.materia].n1.push(r.n1);byMat[r.materia].nf.push(r.nf);if(r.nf<7)byMat[r.materia].bad++;});
+  const ml=Object.keys(byMat);
+  const top=[...ml].sort((a,b)=>avg(byMat[b].n1)-avg(byMat[a].n1)).slice(0,10);
+  const low=[...ml].sort((a,b)=>avg(byMat[a].n1)-avg(byMat[b].n1)).slice(0,10);
+  mk('ch-mat-top','bar',{labels:top,datasets:[{data:top.map(m=>avg(byMat[m].n1)),backgroundColor:'#69b08a'}]},{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{min:5,max:10}}});
+  mk('ch-mat-low','bar',{labels:low,datasets:[{data:low.map(m=>avg(byMat[m].n1)),backgroundColor:'#e57272'}]},{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{min:5,max:10}}});
+  const riskM=[...ml].sort((a,b)=>byMat[b].bad-byMat[a].bad).slice(0,10);
+  mk('ch-mat-risk','bar',{labels:riskM,datasets:[{label:'Desaprobados',data:riskM.map(m=>byMat[m].bad),backgroundColor:'#e66b6b'}]});
 
-  const mapInas={}; att.forEach(a=>{mapInas[a.student]=a.inas;});
-  const pts=[]; rec.forEach(r=>{ if(mapInas[r.student]!==undefined) pts.push({x:mapInas[r.student], y:r.avg}); });
-  const corr = pearson(pts.map(p=>p.x), pts.map(p=>p.y));
-  document.getElementById('corr-text').innerHTML = `<p style="font-size:14px">Coeficiente de correlación (inasistencias vs promedio): <b>${isNaN(corr)?'N/D':corr.toFixed(3)}</b></p><p style="color:var(--muted);margin-top:8px">Interpretación: valores cercanos a -1 indican que a mayor inasistencia, menor rendimiento.</p>`;
-}
+  // trayectorias
+  const tr=v=>v>=8?'TEA':v>=6?'TEP':'TED';
+  const c1={TEA:0,TEP:0,TED:0},c2={TEA:0,TEP:0,TED:0}; rows.forEach(r=>{c1[tr(r.n1)]++;c2[tr(r.n2)]++;});
+  kpi('kpi-tray',[
+    {v:c1.TEA.toLocaleString('es-AR'),t:'TEA — 1ER CUATRIMESTRE',s:'Trayectoria Educativa Avanzada',c:'#3ea66d'},
+    {v:c1.TEP.toLocaleString('es-AR'),t:'TEP — 1ER CUATRIMESTRE',s:'Trayectoria en Proceso',c:'#274b7a'},
+    {v:c1.TED.toLocaleString('es-AR'),t:'TED — 1ER CUATRIMESTRE',s:'Trayectoria Discontinua',c:'#dc4f4f'}
+  ]);
+  mk('ch-tray-c1','doughnut',{labels:['TEA','TEP','TED'],datasets:[{data:[c1.TEA,c1.TEP,c1.TED],backgroundColor:['#3ea66d','#d5a236','#e15a5a']}]});
+  mk('ch-tray-c2','doughnut',{labels:['TEA','TEP','TED'],datasets:[{data:[c2.TEA,c2.TEP,c2.TED],backgroundColor:['#3ea66d','#d5a236','#e15a5a']}]});
+  mk('ch-tray-curso','bar',{labels:cl,datasets:[{label:'TEA',data:cl.map(c=>rows.filter(r=>r.curso===c&&tr(r.n1)==='TEA').length),backgroundColor:'#69b087'},{label:'TEP',data:cl.map(c=>rows.filter(r=>r.curso===c&&tr(r.n1)==='TEP').length),backgroundColor:'#d6ac52'},{label:'TED',data:cl.map(c=>rows.filter(r=>r.curso===c&&tr(r.n1)==='TED').length),backgroundColor:'#e36a6a'}]},{scales:{x:{stacked:true},y:{stacked:true}}});
 
-function pearson(x,y){
-  if(!x.length || x.length!==y.length) return NaN;
-  const mx=avg(x), my=avg(y);
-  let num=0,dx=0,dy=0;
-  for(let i=0;i<x.length;i++){const a=x[i]-mx,b=y[i]-my;num+=a*b;dx+=a*a;dy+=b*b;}
-  return num/Math.sqrt(dx*dy);
-}
+  // asistencia
+  const cIn=cl.map(c=>avg(inByCourse[c]||[]));
+  mk('ch-asi-curso','bar',{labels:cl,datasets:[{data:cIn,backgroundColor:cIn.map(v=>v>=45?'#e66767':v>=25?'#d8ad56':'#69b087')}]},{plugins:{legend:{display:false}}});
+  const c1In=cl.map(c=>avg(asRows.filter(a=>a.curso===c).map(a=>a.c1).filter(v=>!isNaN(v))));
+  const c2In=cl.map(c=>avg(asRows.filter(a=>a.curso===c).map(a=>a.c2).filter(v=>!isNaN(v))));
+  mk('ch-asi-cuat','bar',{labels:cl,datasets:[{label:'1er Cuatrimestre',data:c1In,backgroundColor:'#5f8fc3'},{label:'2do Cuatrimestre',data:c2In,backgroundColor:'#6da6db'}]});
+  const pts=cl.map(c=>({x:avg(inByCourse[c]||[]),y:avg(byCourse[c].n1)}));
+  mk('ch-asi-corr','scatter',{datasets:[{label:'Cursos',data:pts,backgroundColor:'#2f70b0'}]},{plugins:{legend:{display:false}},scales:{x:{title:{display:true,text:'Inasistencias promedio'}},y:{min:5,max:9,title:{display:true,text:'Promedio 1°C'}}}});
 
-function buildAlertaAcademica(ds){
-  const byStudent={}; ds.records.forEach(r=>{(byStudent[r.student]=byStudent[r.student]||[]).push(r.avg)});
-  const low=Object.entries(byStudent).map(([a,vs])=>({Alumno:a,Promedio:+avg(vs).toFixed(2)})).filter(r=>r.Promedio<6).sort((a,b)=>a.Promedio-b.Promedio).slice(0,30);
-  tableData['alert-al']={rows:low,headers:['Alumno','Promedio']}; renderTHead('th-alert-al',['Alumno','Promedio']); renderTBody('tb-alert-al',low,['Alumno','Promedio']);
+  // alerta
+  const riskStudents=Object.entries(byStudent).map(([a,v])=>({al:a,p:avg(v)})).filter(x=>x.p<6).sort((a,b)=>a.p-b.p);
+  kpi('kpi-alerta',[
+    {v:riskStudents.length,t:'ESTUDIANTES EN RIESGO',s:'Con al menos 1 materia final <7',c:'#dc4f4f'},
+    {v:((riskStudents.length/(students.length||1))*100).toFixed(1)+'%',t:'% DEL TOTAL',s:`${riskStudents.length} de ${students.length} alumnos`,c:'#dc4f4f'},
+    {v:Object.values(byStudent).filter(v=>avg(v)<5).length,t:'PROMEDIO < 6',s:'Estudiantes con promedio general muy bajo',c:'#1f4577'}
+  ]);
+  mk('ch-alerta-curso','bar',{labels:cl,datasets:[{label:'En riesgo',data:cl.map(c=>rows.filter(r=>r.curso===c&&r.nf<7).length),backgroundColor:'#e66c6c'},{label:'Total alumnos',data:cl.map(c=>byCourse[c].als.size),backgroundColor:'#d6dbe3'}]});
+  mk('ch-alerta-mat','bar',{labels:riskM,datasets:[{data:riskM.map(m=>byMat[m].bad),backgroundColor:'#e66c6c'}]},{indexAxis:'y',plugins:{legend:{display:false}}});
+  const lowRows=riskStudents.slice(0,20).map((r,i)=>({'#':i+1,Estudiante:r.al,Curso:(rows.find(x=>x.al===r.al)||{}).curso||'—','Promedio 1°C':r.p.toFixed(2),Estado:r.p<5?'Crítico':'En proceso'}));
+  renderTable('th-alerta','tb-alerta',['#','Estudiante','Curso','Promedio 1°C','Estado'],lowRows);
+  [...document.querySelectorAll('#tb-alerta tr')].forEach(tr=>{const td=tr.lastElementChild; if(!td) return; td.innerHTML=`<span class="badge ${td.textContent==='Crítico'?'b-crit':'b-proc'}">${td.textContent}</span>`});
 
-  const byMat={}; ds.records.forEach(r=>{byMat[r.subject]=byMat[r.subject]||{tot:0,bad:0};byMat[r.subject].tot++; if(r.avg<6)byMat[r.subject].bad++;});
-  const mats=Object.entries(byMat).map(([m,v])=>({Materia:m,'Desaprobados':v.bad,'% Riesgo':((v.bad/v.tot)*100).toFixed(1)+'%'})).sort((a,b)=>parseN(b['% Riesgo'])-parseN(a['% Riesgo'])).slice(0,20);
-  tableData['alert-mat']={rows:mats,headers:['Materia','Desaprobados','% Riesgo']}; renderTHead('th-alert-mat',['Materia','Desaprobados','% Riesgo']); renderTBody('tb-alert-mat',mats,['Materia','Desaprobados','% Riesgo']);
-}
+  // rankings
+  const top15=Object.entries(byStudent).map(([a,v])=>({est:a,p:avg(v),curso:(rows.find(x=>x.al===a)||{}).curso||'—'})).sort((a,b)=>b.p-a.p).slice(0,15);
+  renderTable('th-top15','tb-top15',['#','Estudiante','Curso','Promedio'],top15.map((r,i)=>({'#':i+1,Estudiante:r.est,Curso:r.curso,Promedio:r.p.toFixed(2)})));
+  mk('ch-rank-cursos','bar',{labels:[...cl].sort((a,b)=>avg(byCourse[b].nf)-avg(byCourse[a].nf)),datasets:[{data:[...cl].sort((a,b)=>avg(byCourse[b].nf)-avg(byCourse[a].nf)).map(c=>avg(byCourse[c].nf)),backgroundColor:[...cl].sort((a,b)=>avg(byCourse[b].nf)-avg(byCourse[a].nf)).map(c=>avg(byCourse[c].nf)>=8?'#66b488':avg(byCourse[c].nf)>=7.5?'#6ea4d6':avg(byCourse[c].nf)>=7?'#d9af57':'#e66767')}]},{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{min:6,max:9}}});
 
-function buildRankings(ds){
-  const byStudent={}; ds.records.forEach(r=>{(byStudent[r.student]=byStudent[r.student]||{vals:[],course:r.course}).vals.push(r.avg)});
-  const top15=Object.entries(byStudent).map(([a,v])=>({Alumno:a,Curso:v.course,Promedio:+avg(v.vals).toFixed(2)})).sort((a,b)=>b.Promedio-a.Promedio).slice(0,15);
-  tableData.top15={rows:top15,headers:['Alumno','Curso','Promedio']}; renderTHead('th-top15',['Alumno','Curso','Promedio']); renderTBody('tb-top15',top15,['Alumno','Curso','Promedio']);
-
-  const byCourse={}; ds.records.forEach(r=>{(byCourse[r.course]=byCourse[r.course]||[]).push(r.avg)});
-  const rank=Object.entries(byCourse).map(([c,vs])=>({Curso:c,Promedio:+avg(vs).toFixed(2),Registros:vs.length})).sort((a,b)=>b.Promedio-a.Promedio);
-  tableData['rank-curso']={rows:rank,headers:['Curso','Promedio','Registros']}; renderTHead('th-rank-curso',['Curso','Promedio','Registros']); renderTBody('tb-rank-curso',rank,['Curso','Promedio','Registros']);
-}
-
-function buildInsights(ds){
-  const rec=ds.records;
-  const byCourse={}; rec.forEach(r=>{(byCourse[r.course]=byCourse[r.course]||[]).push(r.avg)});
-  const bestCourse=Object.entries(byCourse).sort((a,b)=>avg(b[1])-avg(a[1]))[0];
-  const worstCourse=Object.entries(byCourse).sort((a,b)=>avg(a[1])-avg(b[1]))[0];
-  const byMat={}; rec.forEach(r=>{(byMat[r.subject]=byMat[r.subject]||[]).push(r.avg)});
-  const hard=Object.entries(byMat).sort((a,b)=>avg(a[1])-avg(b[1]))[0];
-  const easy=Object.entries(byMat).sort((a,b)=>avg(b[1])-avg(a[1]))[0];
-  const risk=rec.filter(r=>r.avg<6).length;
-  const hi=rec.filter(r=>r.avg>=8).length;
-  const list=[
-    `El promedio institucional actual es <b>${avg(rec.map(r=>r.avg)).toFixed(2)}</b> y el nivel de aprobación alcanza <b>${(rec.length?rec.filter(r=>r.avg>=6).length*100/rec.length:0).toFixed(1)}%</b>.`,
-    `El curso con mejor desempeño es <b>${bestCourse?bestCourse[0]:'N/D'}</b> (${bestCourse?avg(bestCourse[1]).toFixed(2):'N/D'}), mientras que el más comprometido es <b>${worstCourse?worstCourse[0]:'N/D'}</b>.`,
-    `La materia más difícil detectada es <b>${hard?hard[0]:'N/D'}</b> y la más accesible es <b>${easy?easy[0]:'N/D'}</b>.`,
-    `Se identifican <b>${risk}</b> registros en franja de riesgo (promedio menor a 6), que requieren acompañamiento focalizado.`,
-    `Hay <b>${hi}</b> registros de alto rendimiento (≥8), útiles para estrategias de tutoría par-a-par.`,
-    `La trayectoria académica sugiere priorizar intervenciones tempranas en 1°C para reducir el arrastre al cierre final.`,
-    `La relación asistencia-rendimiento debe monitorearse semanalmente para anticipar alertas de TED y sostener continuidad pedagógica.`
+  // insights
+  const bestCourse=[...cl].sort((a,b)=>avg(byCourse[b].nf)-avg(byCourse[a].nf))[0];
+  const worstCourse=[...cl].sort((a,b)=>avg(byCourse[a].nf)-avg(byCourse[b].nf))[0];
+  const hard=riskM[0]||'N/D';
+  const easy=top[0]||'N/D';
+  const ins=[
+    `Los cursos superiores presentan mayores dificultades: <b>${worstCourse||'N/D'}</b> está entre los más bajos, mientras <b>${bestCourse||'N/D'}</b> lidera el rendimiento.`,
+    `Ausentismo alarmante en algunos cursos: los grupos con más inasistencias coinciden con los menores promedios.`,
+    `Las divisiones con mejor asistencia sostienen mejores notas finales de manera consistente.`,
+    `<b>${hard}</b> aparece entre las materias más exigentes; en contraste, <b>${easy}</b> concentra mejores promedios.`,
+    `Se observa leve caída en 2°C y recuperación parcial en nota final en varios cursos.`,
+    `<b>${riskStudents.length}</b> estudiantes requieren seguimiento personalizado por riesgo académico.`,
+    `Los destacados académicos se distribuyen en distintos años, lo que habilita tutorías entre pares.`
   ];
-  document.getElementById('insights-list').innerHTML = list.map(i=>`<li>${i}</li>`).join('');
-}
-
-// ─── TABLE HELPERS ───
-function renderTHead(id, headers, sortKey='') {
-  document.getElementById(id).innerHTML =
-    `<tr>${headers.map(h=>`<th onclick="sortTbl('${id.replace('th-','tb-')}','${id}','${h}')" class="${sortState[id+'_col']===h?'s':''}">${h}${sortState[id+'_col']===h?(sortState[id+'_asc']?' ↑':' ↓'):''}</th>`).join('')}</tr>`;
-}
-
-function renderTBody(id, rows, headers) {
-  const MAX=300;
-  const nc = notaCol(rows.length?[rows[0]]:[]);
-  const ac = asistCol(rows.length?[rows[0]]:[]);
-  document.getElementById(id).innerHTML = rows.slice(0,MAX).map(row=>
-    `<tr>${headers.map(h=>{
-      let v = row[h]??'';
-      const isNum = !isNaN(parseN(String(v))) && String(v).trim()!=='';
-      // Pill for nota column
-      if (nc && h===nc && isNum) {
-        const n = parseN(v);
-        const cls = n>=7?'pill-green':n>=6?'pill-amber':'pill-red';
-        return `<td class="n"><span class="pill ${cls}">${n}</span></td>`;
-      }
-      // Pill for asistencia
-      if (ac && h===ac && isNum) {
-        const n = parseN(v);
-        const cls = n>=80?'pill-green':n>=60?'pill-amber':'pill-red';
-        return `<td class="n"><span class="pill ${cls}">${n}%</span></td>`;
-      }
-      return `<td class="${isNum?'n':''}">${v}</td>`;
-    }).join('')}</tr>`
-  ).join('');
-  if (rows.length>MAX)
-    document.getElementById(id).innerHTML += `<tr><td colspan="${headers.length}" style="text-align:center;color:var(--muted);padding:12px;font-size:11px">+ ${rows.length-MAX} más</td></tr>`;
-}
-
-function filterTable(key) {
-  const map = {alumnos:{s:'srch-alumnos',th:'th-alumnos',tb:'tb-alumnos',cnt:'cnt-alumnos'},
-               cali:{s:'srch-cali',th:'th-cali',tb:'tb-cali',cnt:'cnt-cali'}};
-  const m = map[key]; if (!m) return;
-  const q = document.getElementById(m.s).value.toLowerCase();
-  const {rows,headers} = tableData[key]||{rows:[],headers:[]};
-  const filtered = q ? rows.filter(r=>headers.some(h=>String(r[h]??'').toLowerCase().includes(q))) : rows;
-  document.getElementById(m.cnt).textContent = `${filtered.length} / ${rows.length}`;
-  renderTBody(m.tb, filtered, headers);
-}
-
-function sortTbl(tbId, thId, col) {
-  const key = thId+'_col', akey = thId+'_asc';
-  if (sortState[key]===col) sortState[akey]=!sortState[akey];
-  else { sortState[key]=col; sortState[akey]=true; }
-  const tKey = tbId.replace('tb-','');
-  const {rows,headers} = tableData[tKey]||{};
-  if (!rows) return;
-  const sorted = [...rows].sort((a,b)=>{
-    const av=parseN(String(a[col]??'')), bv=parseN(String(b[col]??''));
-    const c=isNaN(av)||isNaN(bv)?String(a[col]??'').localeCompare(String(b[col]??'')):av-bv;
-    return sortState[akey]?c:-c;
-  });
-  renderTHead(thId, headers);
-  renderTBody(tbId, sorted, headers);
-}
-
-// ─── CHARTS ───
-function makeChart(id, type, labels, data, color) {
-  const ctx = document.getElementById(id);
-  if (!ctx) return;
-  destroyChart(id);
-  const isDough = type==='doughnut';
-  const bg  = isDough ? PAL.slice(0,labels.length) : (color+'22');
-  const brd = isDough ? PAL.slice(0,labels.length) : color;
-  Chart.defaults.color='#64748b'; Chart.defaults.font.family='Outfit';
-  charts[id] = new Chart(ctx, {
-    type, data:{labels, datasets:[{
-      label:'', data, backgroundColor:bg, borderColor:brd,
-      borderWidth:isDough?2:1.5, fill:type==='line', tension:0.4,
-      pointBackgroundColor:color, pointRadius:type==='line'?3:0, hoverOffset:6,
-    }]},
-    options:{
-      responsive:true, maintainAspectRatio:false,
-      plugins:{
-        legend:{display:isDough, position:'bottom', labels:{font:{size:10},color:'#4a5070',padding:10,boxWidth:10}},
-        tooltip:{backgroundColor:'#ffffff',titleColor:'#1e293b',bodyColor:'#64748b',borderColor:'rgba(15,23,42,.12)',borderWidth:1,padding:10}
-      },
-      scales:isDough?{}:{
-        x:{grid:{color:'rgba(15,23,42,.06)'},ticks:{font:{size:10},maxRotation:30}},
-        y:{grid:{color:'rgba(15,23,42,.06)'},ticks:{font:{size:10}}}
-      }
-    }
-  });
-}
-
-function destroyChart(id) { if(charts[id]){charts[id].destroy();delete charts[id];} }
-
-
-function clearD3(id){ d3.select('#'+id).selectAll('*').remove(); }
-function renderD3Bar(id,data,max=10){
-  clearD3(id); if(!data.length) return;
-  const w=document.getElementById(id).clientWidth||420,h=250,m={t:18,r:14,b:40,l:34};
-  const svg=d3.select('#'+id).append('svg').attr('width',w).attr('height',h);
-  const x=d3.scaleBand().domain(data.map(d=>d.label)).range([m.l,w-m.r]).padding(0.25);
-  const y=d3.scaleLinear().domain([0,max]).nice().range([h-m.b,m.t]);
-  svg.append('g').attr('transform',`translate(0,${h-m.b})`).call(d3.axisBottom(x).tickSizeOuter(0)).selectAll('text').style('font-size','10px');
-  svg.append('g').attr('transform',`translate(${m.l},0)`).call(d3.axisLeft(y).ticks(5)).selectAll('text').style('font-size','10px');
-  svg.selectAll('rect').data(data).enter().append('rect').attr('x',d=>x(d.label)).attr('y',d=>y(d.value)).attr('width',x.bandwidth()).attr('height',d=>h-m.b-y(d.value)).attr('rx',6).attr('fill',d=>d.color||'var(--blue)');
-}
-function renderD3Line(id,data,max=100){
-  clearD3(id); if(!data.length) return;
-  const w=document.getElementById(id).clientWidth||420,h=250,m={t:18,r:14,b:34,l:34};
-  const svg=d3.select('#'+id).append('svg').attr('width',w).attr('height',h);
-  const x=d3.scalePoint().domain(data.map(d=>d.label)).range([m.l,w-m.r]);
-  const y=d3.scaleLinear().domain([0,max]).nice().range([h-m.b,m.t]);
-  const line=d3.line().x(d=>x(d.label)).y(d=>y(d.value));
-  svg.append('path').datum(data).attr('fill','none').attr('stroke','#34d399').attr('stroke-width',2.5).attr('d',line);
-  svg.selectAll('circle').data(data).enter().append('circle').attr('cx',d=>x(d.label)).attr('cy',d=>y(d.value)).attr('r',3.5).attr('fill','#34d399');
-  svg.append('g').attr('transform',`translate(0,${h-m.b})`).call(d3.axisBottom(x)).selectAll('text').style('font-size','10px');
-  svg.append('g').attr('transform',`translate(${m.l},0)`).call(d3.axisLeft(y).ticks(5)).selectAll('text').style('font-size','10px');
-}
-function renderD3Donut(id,data){
-  clearD3(id); if(!data.length) return;
-  const w=document.getElementById(id).clientWidth||420,h=250,r=Math.min(w,h)/2-16;
-  const svg=d3.select('#'+id).append('svg').attr('width',w).attr('height',h).append('g').attr('transform',`translate(${w/2},${h/2})`);
-  const pie=d3.pie().value(d=>d.value)(data); const arc=d3.arc().innerRadius(r*0.55).outerRadius(r);
-  svg.selectAll('path').data(pie).enter().append('path').attr('d',arc).attr('fill',d=>d.data.color).attr('stroke','#fff').attr('stroke-width',2);
-}
-
-// ─── COLUMN DETECTION ───
-function notaCol(rows) {
-  if (!rows.length) return null;
-  return Object.keys(rows[0]).find(h=>/nota|calif|puntaje|score|grade|promedio/i.test(h))||
-    Object.keys(rows[0]).find(h=>numVals(rows.slice(0,10),h).some(v=>v>=0&&v<=10));
-}
-function materiaCol(rows) {
-  if (!rows.length) return null;
-  return Object.keys(rows[0]).find(h=>/materia|asignatura|curso|subject/i.test(h));
-}
-function alumnoCol(rows) {
-  if (!rows.length) return null;
-  return Object.keys(rows[0]).find(h=>/alumno|estudiante|nombre|student|name/i.test(h));
-}
-function mesCol(rows) {
-  if (!rows.length) return null;
-  return Object.keys(rows[0]).find(h=>/mes|month|periodo/i.test(h));
-}
-function asistCol(rows) {
-  if (!rows.length) return null;
-  return Object.keys(rows[0]).find(h=>/asistencia|asist|attendance|present/i.test(h))||
-    Object.keys(rows[0]).find(h=>numVals(rows.slice(0,10),h).some(v=>v>=0&&v<=100));
-}
-function fechaCol(rows) {
-  if (!rows.length) return null;
-  return Object.keys(rows[0]).find(h=>/fecha|date|dia/i.test(h));
-}
-
-// ─── UTILS ───
-function numVals(rows,h){return rows.map(r=>parseN(String(r[h]??''))).filter(v=>!isNaN(v));}
-function parseN(v){return parseFloat(String(v).replace(/[^\d.\-]/g,''));}
-function addKPI(strip,{icon,lbl,val,sub,c},i){
-  const d=document.createElement('div'); d.className='kpi';
-  d.style.setProperty('--kc',c); d.style.animationDelay=(i*.07)+'s';
-  d.innerHTML=`<div class="kpi-icon">${icon}</div><div class="kpi-lbl">${lbl}</div><div class="kpi-val">${val}</div><div class="kpi-sub">${sub}</div>`;
-  strip.appendChild(d);
-}
-function setStatus(s,t){document.getElementById('sdot').className='sdot '+s;document.getElementById('stxt').textContent=t;}
-function show(id){document.getElementById(id).style.display='';}
-function hide(id){document.getElementById(id).style.display='none';}
-function goTo(sec){
-  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
-  const el=document.getElementById('sec-'+sec); if(el)el.classList.add('active');
-  document.querySelectorAll('.nav-item').forEach(n=>{if(n.getAttribute('onclick')&&n.getAttribute('onclick').includes(sec))n.classList.add('active');});
+  document.getElementById('insights-list').innerHTML=ins.map(t=>`<div class="insight">${t}</div>`).join('');
 }
 
 loadSchools();
+bootTabs();
 boot();
 </script>
 </body>
