@@ -45,6 +45,16 @@ td{padding:9px 12px;border-bottom:1px solid #e6ecf3}
 .b-crit{background:#fce3e3;color:#b53c3c}.b-proc{background:#fff0d8;color:#926500}
 .insight{background:#e5f6fa;border-left:4px solid #2c6bb0;padding:14px 14px;margin-bottom:10px;border-radius:10px}
 .footer{color:#7b8ca4;text-align:center;font-size:12px;margin:18px 0}
+.onb{position:fixed;inset:0;background:rgba(10,18,32,.65);display:flex;align-items:center;justify-content:center;z-index:2000;padding:20px}
+.onb-card{width:min(980px,95vw);max-height:92vh;overflow:auto;background:#fff;border-radius:16px;border:1px solid var(--line);padding:22px}
+.onb-grid{display:grid;grid-template-columns:1.2fr .9fr;gap:18px}
+.onb h2{font-size:28px;margin-bottom:10px}.onb p{color:var(--muted);margin-bottom:8px}
+.onb ul{padding-left:18px;color:#33465f;line-height:1.6}.onb li{margin-bottom:4px}
+.login-box{background:#f4f7fb;border:1px solid var(--line);border-radius:12px;padding:14px}
+.login-box label{font-size:12px;font-weight:700;color:#5c6f88;display:block;margin:8px 0 4px}
+.login-box input,.login-box select{width:100%;padding:9px 10px;border:1px solid #cfd9e7;border-radius:8px}
+.login-btn{margin-top:12px;background:var(--blue-dark);color:#fff;border:0;padding:10px 12px;border-radius:8px;cursor:pointer;width:100%;font-weight:700}
+.login-err{color:#b82323;font-size:12px;min-height:16px;margin-top:8px}
 @media(max-width:1100px){.kpis{grid-template-columns:repeat(2,1fr)}.grid-2,.grid-3{grid-template-columns:1fr} h1{font-size:34px}}
 </style>
 </head>
@@ -58,12 +68,37 @@ td{padding:9px 12px;border-bottom:1px solid #e6ecf3}
     </div>
   </div>
   <div class="school-tools">
-    <select id="school-select" onchange="changeSchool(this.value)"></select>
-    <button class="btn" onclick="addSchool()">+ Colegio</button>
-    <button class="btn" onclick="editSchool()">Editar link</button>
+    <select id="school-select" disabled></select>
+    <button class="btn" onclick="logout()">Cambiar colegio</button>
     <button class="btn" onclick="boot()">↺</button>
   </div>
 </header>
+
+<div class="onb" id="onboarding">
+  <div class="onb-card">
+    <div class="onb-grid">
+      <div>
+        <h2>Bienvenido al Dashboard Académico</h2>
+        <p>Antes este sistema era un tablero único sin control de acceso por institución. Ahora cada colegio entra con su clave y solo ve su información.</p>
+        <ul>
+          <li>🔐 Acceso por colegio con contraseña.</li>
+          <li>🏫 Cada institución visualiza exclusivamente su tablero.</li>
+          <li>📊 Conserva todas las secciones analíticas (resumen, cursos, materias, asistencia, alertas, rankings e insights).</li>
+          <li>🧭 Podés cerrar sesión para cambiar de colegio.</li>
+        </ul>
+      </div>
+      <div class="login-box">
+        <h3 style="margin-bottom:8px">Ingresar</h3>
+        <label>Colegio</label>
+        <select id="login-school"></select>
+        <label>Contraseña</label>
+        <input id="login-pass" type="password" placeholder="Ingresá contraseña">
+        <button class="login-btn" onclick="login()">Entrar al tablero</button>
+        <div class="login-err" id="login-err"></div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <nav class="tabs" id="tabs"></nav>
 
@@ -140,23 +175,60 @@ td{padding:9px 12px;border-bottom:1px solid #e6ecf3}
 </div>
 
 <script>
-const DEFAULT_SCHOOLS=[{id:'default',name:'Colegio Principal',api:'https://script.google.com/macros/s/AKfycbzUjY4y_BWKMfmTdRV3F6RFqLizlyjnFIXjCogoc740qNtrBsi9AYM-RKjgk8Q0qv_CXw/exec'}];
-const SCHOOL_KEY='edupanel_schools_v1';
+const ACCESS_KEY='dashboard_access_v1';
+const SCHOOL_ACCESS=[
+  {id:'nzps',name:'NZPS',pass:'nzps2026',api:'https://script.google.com/macros/s/AKfycbzUjY4y_BWKMfmTdRV3F6RFqLizlyjnFIXjCogoc740qNtrBsi9AYM-RKjgk8Q0qv_CXw/exec'},
+  {id:'san-patricio',name:'San Patricio',pass:'sanpa2026',api:'https://script.google.com/macros/s/AKfycbzUjY4y_BWKMfmTdRV3F6RFqLizlyjnFIXjCogoc740qNtrBsi9AYM-RKjgk8Q0qv_CXw/exec'}
+];
 const TABS=[['resumen-general','Resumen General'],['por-curso','Por Curso'],['materias','Materias'],['trayectorias','Trayectorias'],['asistencia','Asistencia'],['alerta-academica','Alerta Académica'],['rankings','Rankings'],['insights','Insights Clave']];
-let schools=[], currentSchoolId='default', DB={}, charts={};
+let schools=[...SCHOOL_ACCESS], currentSchoolId='nzps', DB={}, charts={};
 
 function loadSchools(){
-  try{schools=JSON.parse(localStorage.getItem(SCHOOL_KEY)||'null')||DEFAULT_SCHOOLS}catch{schools=[...DEFAULT_SCHOOLS]}
-  if(!schools.length) schools=[...DEFAULT_SCHOOLS];
-  currentSchoolId=localStorage.getItem('edupanel_school_active')||schools[0].id;
-  if(!schools.some(s=>s.id===currentSchoolId)) currentSchoolId=schools[0].id;
-  document.getElementById('school-select').innerHTML=schools.map(s=>`<option value="${s.id}" ${s.id===currentSchoolId?'selected':''}>${s.name}</option>`).join('');
+  const sel=document.getElementById('school-select');
+  const loginSel=document.getElementById('login-school');
+  if(sel) sel.innerHTML=schools.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+  if(loginSel) loginSel.innerHTML=schools.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
 }
 function activeSchool(){return schools.find(s=>s.id===currentSchoolId)||schools[0]}
-function persistSchools(){localStorage.setItem(SCHOOL_KEY,JSON.stringify(schools));localStorage.setItem('edupanel_school_active',currentSchoolId)}
-function changeSchool(id){currentSchoolId=id;persistSchools();boot()}
-function addSchool(){const n=prompt('Nombre del colegio');if(!n)return;const a=prompt('Link AppScript /exec');if(!a)return;const id='s'+Date.now();schools.push({id,name:n.trim(),api:a.trim()});currentSchoolId=id;persistSchools();loadSchools();boot()}
-function editSchool(){const s=activeSchool();const n=prompt('Editar nombre',s.name);if(!n)return;const a=prompt('Editar link AppScript',s.api);if(!a)return;s.name=n.trim();s.api=a.trim();persistSchools();loadSchools();boot()}
+function changeSchool(id){ currentSchoolId=id; document.getElementById('school-select').value=id; }
+function updateHeaderSchoolBasic(){
+  document.getElementById('hdr-sub').textContent=`${activeSchool().name} · Nivel Secundario`;
+}
+function restoreSession(){
+  try{
+    const saved=JSON.parse(localStorage.getItem(ACCESS_KEY)||'null');
+    if(saved && schools.some(s=>s.id===saved.schoolId)){
+      currentSchoolId=saved.schoolId;
+      document.getElementById('onboarding').style.display='none';
+      document.getElementById('school-select').value=currentSchoolId;
+      updateHeaderSchoolBasic();
+      return true;
+    }
+  }catch{}
+  return false;
+}
+function login(){
+  const sid=document.getElementById('login-school').value;
+  const pass=document.getElementById('login-pass').value;
+  const school=schools.find(s=>s.id===sid);
+  if(!school || pass!==school.pass){
+    document.getElementById('login-err').textContent='Credenciales inválidas. Revisá colegio y contraseña.';
+    return;
+  }
+  currentSchoolId=sid;
+  localStorage.setItem(ACCESS_KEY, JSON.stringify({schoolId:sid,at:Date.now()}));
+  document.getElementById('onboarding').style.display='none';
+  document.getElementById('school-select').value=sid;
+  updateHeaderSchoolBasic();
+  boot();
+}
+function logout(){
+  localStorage.removeItem(ACCESS_KEY);
+  document.getElementById('login-pass').value='';
+  document.getElementById('login-err').textContent='';
+  document.getElementById('onboarding').style.display='flex';
+  updateHeaderSchoolBasic();
+}
 
 function bootTabs(){
   const tabs=document.getElementById('tabs');
@@ -384,7 +456,8 @@ function buildAll(){
 
 loadSchools();
 bootTabs();
-boot();
+updateHeaderSchoolBasic();
+if(restoreSession()) boot();
 </script>
 </body>
 </html>
