@@ -5,23 +5,24 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard Escolar</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://d3js.org/d3.v7.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg: #060810;
-  --s1: #0c0e1a;
-  --s2: #111526;
-  --border: rgba(255,255,255,0.06);
-  --border-h: rgba(255,255,255,0.14);
+  --bg: #f3f6fb;
+  --s1: #ffffff;
+  --s2: #eef3fb;
+  --border: rgba(15,23,42,0.09);
+  --border-h: rgba(15,23,42,0.2);
   --blue: #4f8ef7;
   --green: #34d399;
   --amber: #fbbf24;
   --red: #f87171;
   --purple: #a78bfa;
   --cyan: #22d3ee;
-  --text: #e2e6f3;
-  --muted: #4a5070;
-  --dim: #161929;
+  --text: #1e293b;
+  --muted: #64748b;
+  --dim: #f8fafc;
   --r: 12px;
 }
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
@@ -29,11 +30,11 @@ html{scroll-behavior:smooth}
 body{background:var(--bg);color:var(--text);font-family:'Outfit',sans-serif;font-size:14px;min-height:100vh}
 
 /* NOISE */
-body::after{content:'';position:fixed;inset:0;opacity:.35;pointer-events:none;z-index:999;
+body::after{content:'';position:fixed;inset:0;opacity:.12;pointer-events:none;z-index:999;
   background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.05'/%3E%3C/svg%3E")}
 
 /* BLOBS */
-.blob{position:fixed;border-radius:50%;filter:blur(130px);pointer-events:none;z-index:0;opacity:.08}
+.blob{position:fixed;border-radius:50%;filter:blur(130px);pointer-events:none;z-index:0;opacity:.12}
 .b1{width:700px;height:700px;background:#4f8ef7;top:-300px;left:-200px}
 .b2{width:500px;height:500px;background:#a78bfa;bottom:-200px;right:-100px}
 .b3{width:400px;height:400px;background:#34d399;top:40%;left:60%;opacity:.05}
@@ -56,6 +57,14 @@ nav{flex:1;padding:0 12px}
 .nav-item .icon{font-size:16px;width:20px;text-align:center}
 .nav-dot{width:5px;height:5px;border-radius:50%;margin-left:auto;opacity:0}
 .nav-item.active .nav-dot{opacity:1;background:var(--blue)}
+
+
+.school-switch{padding:0 20px 16px;border-bottom:1px solid var(--border);margin-bottom:16px}
+.school-switch label{display:block;font-size:10px;letter-spacing:1.4px;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.school-switch select,.school-switch input{width:100%;background:var(--dim);border:1px solid var(--border);color:var(--text);padding:7px 9px;border-radius:8px;font-size:12px;font-family:'Outfit',sans-serif}
+.school-switch .mini-actions{display:flex;gap:6px;margin-top:8px}
+.school-switch .mini-actions button{flex:1;padding:6px 8px;font-size:11px}
+.d3-chart{height:260px;width:100%}
 
 .sidebar-bottom{padding:16px 20px;border-top:1px solid var(--border);margin-top:auto}
 .status-chip{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--muted)}
@@ -188,6 +197,14 @@ tr:hover td{background:var(--dim)}
       <h2>EduPanel</h2>
       <p>Dashboard Escolar</p>
     </div>
+    <div class="school-switch">
+      <label for="school-select">Colegio activo</label>
+      <select id="school-select" onchange="changeSchool(this.value)"></select>
+      <div class="mini-actions">
+        <button class="btn" onclick="addSchool()">+ Nuevo</button>
+        <button class="btn" onclick="editSchool()">Editar</button>
+      </div>
+    </div>
     <nav>
       <div class="nav-label">General</div>
       <div class="nav-item active" onclick="goTo('resumen')">
@@ -252,17 +269,17 @@ tr:hover td{background:var(--dim)}
       <div class="g2">
         <div class="card">
           <div class="card-head"><h3>Promedio por Materia</h3><span class="badge">calificaciones</span></div>
-          <div class="card-body"><div class="chart-wrap"><canvas id="ch-materias"></canvas></div></div>
+          <div class="card-body"><div class="d3-chart" id="d3-materias"></div></div>
         </div>
         <div class="card">
           <div class="card-head"><h3>Asistencia Mensual</h3><span class="badge">%</span></div>
-          <div class="card-body"><div class="chart-wrap"><canvas id="ch-asistencia"></canvas></div></div>
+          <div class="card-body"><div class="d3-chart" id="d3-asistencia"></div></div>
         </div>
       </div>
       <div class="g2">
         <div class="card">
           <div class="card-head"><h3>Distribución de Notas</h3><span class="badge">alumnos</span></div>
-          <div class="card-body"><div class="chart-wrap"><canvas id="ch-notas-dist"></canvas></div></div>
+          <div class="card-body"><div class="d3-chart" id="d3-notas-dist"></div></div>
         </div>
         <div class="card">
           <div class="card-head"><h3>Top 5 · Mejor Promedio</h3><span class="badge">alumnos</span></div>
@@ -357,10 +374,53 @@ tr:hover td{background:var(--dim)}
 </div>
 
 <script>
-const API = 'https://script.google.com/macros/s/AKfycbzUjY4y_BWKMfmTdRV3F6RFqLizlyjnFIXjCogoc740qNtrBsi9AYM-RKjgk8Q0qv_CXw/exec';
+const DEFAULT_SCHOOLS = [{ id:'default', name:'Colegio Principal', api:'https://script.google.com/macros/s/AKfycbzUjY4y_BWKMfmTdRV3F6RFqLizlyjnFIXjCogoc740qNtrBsi9AYM-RKjgk8Q0qv_CXw/exec' }];
+const SCHOOL_KEY='edupanel_schools_v1';
 const PAL = ['#4f8ef7','#34d399','#fbbf24','#f87171','#a78bfa','#22d3ee','#fb923c','#e879f9'];
 let DB = {}, charts = {}, sortState = {}, tableData = {};
-let currentMonth = null;
+let currentMonth = null, schools = [], currentSchoolId = 'default';
+
+
+function loadSchools() {
+  try {
+    schools = JSON.parse(localStorage.getItem(SCHOOL_KEY) || 'null') || DEFAULT_SCHOOLS;
+  } catch (_) { schools = [...DEFAULT_SCHOOLS]; }
+  if (!Array.isArray(schools) || !schools.length) schools = [...DEFAULT_SCHOOLS];
+  currentSchoolId = localStorage.getItem('edupanel_school_active') || schools[0].id;
+  if (!schools.some(s=>s.id===currentSchoolId)) currentSchoolId = schools[0].id;
+  renderSchoolSelector();
+}
+function saveSchools() {
+  localStorage.setItem(SCHOOL_KEY, JSON.stringify(schools));
+  localStorage.setItem('edupanel_school_active', currentSchoolId);
+}
+function renderSchoolSelector() {
+  const sel = document.getElementById('school-select');
+  if (!sel) return;
+  sel.innerHTML = schools.map(s=>`<option value="${s.id}" ${s.id===currentSchoolId?'selected':''}>${s.name}</option>`).join('');
+}
+function activeSchool(){ return schools.find(s=>s.id===currentSchoolId) || schools[0]; }
+function changeSchool(id){ currentSchoolId=id; saveSchools(); loadSchools();
+boot(); }
+function addSchool(){
+  const name = prompt('Nombre del colegio');
+  if (!name) return;
+  const api = prompt('Pegá el link de AppScript (deploy /exec)');
+  if (!api) return;
+  const id = 's'+Date.now();
+  schools.push({id,name:name.trim(),api:api.trim()});
+  currentSchoolId=id; saveSchools(); renderSchoolSelector(); loadSchools();
+boot();
+}
+function editSchool(){
+  const s = activeSchool(); if (!s) return;
+  const name = prompt('Editar nombre del colegio', s.name);
+  if (!name) return;
+  const api = prompt('Editar link AppScript', s.api);
+  if (!api) return;
+  s.name=name.trim(); s.api=api.trim(); saveSchools(); renderSchoolSelector(); loadSchools();
+boot();
+}
 
 // ─── BOOT ───
 async function boot() {
@@ -369,7 +429,8 @@ async function boot() {
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
 
   try {
-    const r = await fetch(API, {cache:'no-store'});
+    const school = activeSchool();
+    const r = await fetch(school.api, {cache:'no-store'});
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     DB = await r.json();
     // Normalize dates
@@ -387,7 +448,7 @@ async function boot() {
     hide('s-load');
     goTo('resumen');
     document.getElementById('last-upd').textContent =
-      'Actualizado: ' + new Date().toLocaleString('es-AR');
+      `Actualizado (${activeSchool().name}): ` + new Date().toLocaleString('es-AR');
   } catch(e) {
     setStatus('err','Error');
     document.getElementById('errmsg').innerHTML =
@@ -438,8 +499,7 @@ function buildResumen() {
       const grp = {};
       cal.forEach(r=>{ const m=r[mc]; const v=parseN(r[nc]); if(m&&!isNaN(v)){grp[m]=grp[m]||[];grp[m].push(v);} });
       const lbls = Object.keys(grp);
-      const vals = lbls.map(l=>(grp[l].reduce((a,b)=>a+b,0)/grp[l].length).toFixed(1));
-      makeChart('ch-materias','bar',lbls,vals,'#4f8ef7');
+      renderD3Bar('d3-materias', lbls.map((l,i)=>({label:l, value:+(grp[l].reduce((a,b)=>a+b,0)/grp[l].length).toFixed(1), color:PAL[i%PAL.length]})), 10);
     }
   }
 
@@ -450,8 +510,7 @@ function buildResumen() {
       const grp = {};
       as.forEach(r=>{ const m=r[mc]; const v=parseN(r[ac]); if(m&&!isNaN(v)){grp[m]=grp[m]||[];grp[m].push(v);} });
       const lbls = Object.keys(grp).slice(0,12);
-      const vals = lbls.map(l=>(grp[l].reduce((a,b)=>a+b,0)/grp[l].length).toFixed(1));
-      makeChart('ch-asistencia','line',lbls,vals,'#34d399');
+      renderD3Line('d3-asistencia', lbls.map((l,i)=>({label:l, value:+(grp[l].reduce((a,b)=>a+b,0)/grp[l].length).toFixed(1), color:PAL[i%PAL.length]})), 100);
     }
   }
 
@@ -466,7 +525,7 @@ function buildResumen() {
         else if(v<=8)buckets['7-8']++;
         else buckets['9-10']++;
       });
-      makeChart('ch-notas-dist','doughnut',Object.keys(buckets),Object.values(buckets),null);
+      renderD3Donut('d3-notas-dist', Object.entries(buckets).map(([label,value],i)=>({label,value,color:PAL[i%PAL.length]})));
     }
   }
 
@@ -699,7 +758,7 @@ function makeChart(id, type, labels, data, color) {
   const isDough = type==='doughnut';
   const bg  = isDough ? PAL.slice(0,labels.length) : (color+'22');
   const brd = isDough ? PAL.slice(0,labels.length) : color;
-  Chart.defaults.color='#4a5070'; Chart.defaults.font.family='Outfit';
+  Chart.defaults.color='#64748b'; Chart.defaults.font.family='Outfit';
   charts[id] = new Chart(ctx, {
     type, data:{labels, datasets:[{
       label:'', data, backgroundColor:bg, borderColor:brd,
@@ -710,17 +769,49 @@ function makeChart(id, type, labels, data, color) {
       responsive:true, maintainAspectRatio:false,
       plugins:{
         legend:{display:isDough, position:'bottom', labels:{font:{size:10},color:'#4a5070',padding:10,boxWidth:10}},
-        tooltip:{backgroundColor:'#0c0e1a',titleColor:'#e2e6f3',bodyColor:'#4a5070',borderColor:'rgba(255,255,255,.06)',borderWidth:1,padding:10}
+        tooltip:{backgroundColor:'#ffffff',titleColor:'#1e293b',bodyColor:'#64748b',borderColor:'rgba(15,23,42,.12)',borderWidth:1,padding:10}
       },
       scales:isDough?{}:{
-        x:{grid:{color:'rgba(255,255,255,.04)'},ticks:{font:{size:10},maxRotation:30}},
-        y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{font:{size:10}}}
+        x:{grid:{color:'rgba(15,23,42,.06)'},ticks:{font:{size:10},maxRotation:30}},
+        y:{grid:{color:'rgba(15,23,42,.06)'},ticks:{font:{size:10}}}
       }
     }
   });
 }
 
 function destroyChart(id) { if(charts[id]){charts[id].destroy();delete charts[id];} }
+
+
+function clearD3(id){ d3.select('#'+id).selectAll('*').remove(); }
+function renderD3Bar(id,data,max=10){
+  clearD3(id); if(!data.length) return;
+  const w=document.getElementById(id).clientWidth||420,h=250,m={t:18,r:14,b:40,l:34};
+  const svg=d3.select('#'+id).append('svg').attr('width',w).attr('height',h);
+  const x=d3.scaleBand().domain(data.map(d=>d.label)).range([m.l,w-m.r]).padding(0.25);
+  const y=d3.scaleLinear().domain([0,max]).nice().range([h-m.b,m.t]);
+  svg.append('g').attr('transform',`translate(0,${h-m.b})`).call(d3.axisBottom(x).tickSizeOuter(0)).selectAll('text').style('font-size','10px');
+  svg.append('g').attr('transform',`translate(${m.l},0)`).call(d3.axisLeft(y).ticks(5)).selectAll('text').style('font-size','10px');
+  svg.selectAll('rect').data(data).enter().append('rect').attr('x',d=>x(d.label)).attr('y',d=>y(d.value)).attr('width',x.bandwidth()).attr('height',d=>h-m.b-y(d.value)).attr('rx',6).attr('fill',d=>d.color||'var(--blue)');
+}
+function renderD3Line(id,data,max=100){
+  clearD3(id); if(!data.length) return;
+  const w=document.getElementById(id).clientWidth||420,h=250,m={t:18,r:14,b:34,l:34};
+  const svg=d3.select('#'+id).append('svg').attr('width',w).attr('height',h);
+  const x=d3.scalePoint().domain(data.map(d=>d.label)).range([m.l,w-m.r]);
+  const y=d3.scaleLinear().domain([0,max]).nice().range([h-m.b,m.t]);
+  const line=d3.line().x(d=>x(d.label)).y(d=>y(d.value));
+  svg.append('path').datum(data).attr('fill','none').attr('stroke','#34d399').attr('stroke-width',2.5).attr('d',line);
+  svg.selectAll('circle').data(data).enter().append('circle').attr('cx',d=>x(d.label)).attr('cy',d=>y(d.value)).attr('r',3.5).attr('fill','#34d399');
+  svg.append('g').attr('transform',`translate(0,${h-m.b})`).call(d3.axisBottom(x)).selectAll('text').style('font-size','10px');
+  svg.append('g').attr('transform',`translate(${m.l},0)`).call(d3.axisLeft(y).ticks(5)).selectAll('text').style('font-size','10px');
+}
+function renderD3Donut(id,data){
+  clearD3(id); if(!data.length) return;
+  const w=document.getElementById(id).clientWidth||420,h=250,r=Math.min(w,h)/2-16;
+  const svg=d3.select('#'+id).append('svg').attr('width',w).attr('height',h).append('g').attr('transform',`translate(${w/2},${h/2})`);
+  const pie=d3.pie().value(d=>d.value)(data); const arc=d3.arc().innerRadius(r*0.55).outerRadius(r);
+  svg.selectAll('path').data(pie).enter().append('path').attr('d',arc).attr('fill',d=>d.data.color).attr('stroke','#fff').attr('stroke-width',2);
+}
 
 // ─── COLUMN DETECTION ───
 function notaCol(rows) {
@@ -769,6 +860,7 @@ function goTo(sec){
   document.querySelectorAll('.nav-item').forEach(n=>{if(n.getAttribute('onclick')&&n.getAttribute('onclick').includes(sec))n.classList.add('active');});
 }
 
+loadSchools();
 boot();
 </script>
 </body>
