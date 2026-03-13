@@ -174,6 +174,8 @@ async function boot(){
   try{
     const r=await fetch(activeSchool().api,{cache:'no-store'}); if(!r.ok) throw new Error('HTTP '+r.status);
     DB=await r.json();
+    if (!DB || typeof DB!=='object') throw new Error('La respuesta del AppScript no es JSON válido.');
+    if (!Array.isArray(DB.calificaciones) && !Array.isArray(DB.alumnos)) throw new Error('El AppScript no devolvió hojas esperadas (alumnos/calificaciones).');
     buildAll();
     document.getElementById('s-load').style.display='none';
     goTo('resumen-general');
@@ -181,11 +183,22 @@ async function boot(){
   }catch(e){
     document.getElementById('s-load').style.display='none';
     document.getElementById('s-err').style.display='block';
-    document.getElementById('errmsg').innerHTML=e.message;
+    document.getElementById('errmsg').innerHTML=`${e.message}<br><br>Revisá que el deploy sea /exec y acceso público (Anyone).`;
+    console.error('Boot error', e, {api: activeSchool().api});
   }
 }
 
-function parseN(v){return parseFloat(String(v??'').replace(/[^\d.\-]/g,''))}
+function parseN(v){
+  const t=String(v??'').trim();
+  if(!t) return NaN;
+  const c=t.replace(/[^\d,\.\-]/g,'');
+  if(c.includes(',') && c.includes('.')){
+    if(c.lastIndexOf(',')>c.lastIndexOf('.')) return parseFloat(c.replace(/\./g,'').replace(',', '.'));
+    return parseFloat(c.replace(/,/g,''));
+  }
+  if(c.includes(',') && !c.includes('.')) return parseFloat(c.replace(',', '.'));
+  return parseFloat(c);
+}
 function avg(a){return a.length?a.reduce((x,y)=>x+y,0)/a.length:0}
 function findCol(rows,re){if(!rows.length)return null;return Object.keys(rows[0]).find(h=>re.test(h))}
 function alumnoCol(rows){return findCol(rows,/alumno|estudiante|nombre|name/i)}
@@ -201,10 +214,18 @@ function buildDataset(){
   const nF=notaCol(cal)||Object.keys(cal[0]||{})[2];
   const n1=findCol(cal,/1\s*[°º]?\s*c|primer|q1/i) || nF;
   const n2=findCol(cal,/2\s*[°º]?\s*c|segundo|q2/i) || nF;
-  const rows=cal.map(r=>({al:String(r[aCol]||'—'),curso:String(r[cCol]||'—'),materia:String(r[mCol]||'—'),n1:parseN(r[n1]),n2:parseN(r[n2]),nf:parseN(r[nF])})).filter(r=>r.al!=='—');
+  const rows=cal.map(r=>({al:String(r[aCol]||'—').trim(),curso:String(r[cCol]||'—').trim(),materia:String(r[mCol]||'—').trim(),n1:parseN(r[n1]),n2:parseN(r[n2]),nf:parseN(r[nF])})).filter(r=>r.al!=='—');
   const iCol=findCol(as,/inasist|ausenc|falt/i); const pCol=findCol(as,/asistencia|present|attendance/i);
-  const asRows=as.map(r=>({al:String(r[alumnoCol(as)||aCol]||'—'),curso:String(r[cursoCol(as)||cCol]||'—'),inas:iCol?parseN(r[iCol]):(100-(parseN(r[pCol])||0))/10,c1:parseN(r[findCol(as,/1\s*[°º]?\s*c|primer|q1/i)]),c2:parseN(r[findCol(as,/2\s*[°º]?\s*c|segundo|q2/i)])}));
-  return {rows,asRows};
+  const asRows=as.map(r=>({al:String(r[alumnoCol(as)||aCol]||'—').trim(),curso:String(r[cursoCol(as)||cCol]||'—').trim(),inas:iCol?parseN(r[iCol]):(100-(parseN(r[pCol])||0))/10,c1:parseN(r[findCol(as,/1\s*[°º]?\s*c|primer|q1/i)]),c2:parseN(r[findCol(as,/2\s*[°º]?\s*c|segundo|q2/i)])}));
+
+  const alRows=DB.alumnos||[];
+  const alNameCol=alumnoCol(alRows)||findCol(alRows,/alumno|estudiante|nombre|name/i);
+  const alCourseCol=cursoCol(alRows)||findCol(alRows,/curso|año|anio|division|seccion|class|grado/i);
+  const masterStudents = alRows.length
+    ? alRows.map(r=>({al:String((alNameCol&&r[alNameCol])||'').trim(), curso:String((alCourseCol&&r[alCourseCol])||'').trim()})).filter(x=>x.al)
+    : [...new Map(rows.map(r=>[r.al,{al:r.al,curso:r.curso}])).values()];
+
+  return {rows,asRows,masterStudents};
 }
 
 function killCharts(){Object.values(charts).forEach(c=>c.destroy&&c.destroy());charts={}}
@@ -219,9 +240,13 @@ function kpi(container,items){const el=document.getElementById(container);el.inn
 function buildAll(){
   killCharts();
   const ds=buildDataset();
-  const rows=ds.rows, asRows=ds.asRows;
-  const students=[...new Set(rows.map(r=>r.al))], courses=[...new Set(rows.map(r=>r.curso))];
+  const rows=ds.rows, asRows=ds.asRows, masterStudents=ds.masterStudents||[];
+  const students=[...new Set(masterStudents.map(r=>r.al).filter(Boolean))];
+  const courses=[...new Set((masterStudents.length?masterStudents:rows).map(r=>r.curso).filter(Boolean))];
   document.getElementById('hdr-sub').textContent=`${activeSchool().name} · Nivel Secundario · ${courses.length} cursos · ${students.length} estudiantes`;
+
+  // Mapa maestro de curso por alumno para evitar subconteos por calificaciones
+  const studentCourseMap=new Map(masterStudents.map(r=>[r.al,r.curso]));
 
   // resumen
   const avgF=avg(rows.map(r=>r.nf).filter(v=>!isNaN(v))); const risk=rows.filter(r=>r.nf<7).length;
@@ -234,7 +259,9 @@ function buildAll(){
     {v:((highAbs/(students.length||1))*100).toFixed(1)+'%',t:'AUSENTISMO ELEVADO',s:`${highAbs} alumnos con >20 inasistencias`,c:'#dc4f4f'},
     {v:((tea/(rows.length||1))*100).toFixed(1)+'%',t:'TEA 1ER CUATRIMESTRE',s:'Trayectoria Educativa Avanzada',c:'#1f4577'}
   ]);
-  const byCourse={}; rows.forEach(r=>{byCourse[r.curso]=byCourse[r.curso]||{n1:[],n2:[],nf:[],als:new Set()};byCourse[r.curso].n1.push(r.n1);byCourse[r.curso].n2.push(r.n2);byCourse[r.curso].nf.push(r.nf);byCourse[r.curso].als.add(r.al)});
+  const byCourse={}; rows.forEach(r=>{const c=r.curso||studentCourseMap.get(r.al)||'Sin curso';byCourse[c]=byCourse[c]||{n1:[],n2:[],nf:[],als:new Set()};byCourse[c].n1.push(r.n1);byCourse[c].n2.push(r.n2);byCourse[c].nf.push(r.nf);byCourse[c].als.add(r.al)});
+  // completar con alumnos maestros aunque no tengan todas las calificaciones
+  masterStudents.forEach(ms=>{const c=ms.curso||'Sin curso';byCourse[c]=byCourse[c]||{n1:[],n2:[],nf:[],als:new Set()};byCourse[c].als.add(ms.al);});
   const cl=Object.keys(byCourse);
   mk('ch-res-cursos','bar',{labels:cl,datasets:[
     {label:'1er Cuatrimestre',data:cl.map(c=>avg(byCourse[c].n1)),backgroundColor:'#3c74b0'},
@@ -299,12 +326,12 @@ function buildAll(){
   ]);
   mk('ch-alerta-curso','bar',{labels:cl,datasets:[{label:'En riesgo',data:cl.map(c=>rows.filter(r=>r.curso===c&&r.nf<7).length),backgroundColor:'#e66c6c'},{label:'Total alumnos',data:cl.map(c=>byCourse[c].als.size),backgroundColor:'#d6dbe3'}]});
   mk('ch-alerta-mat','bar',{labels:riskM,datasets:[{data:riskM.map(m=>byMat[m].bad),backgroundColor:'#e66c6c'}]},{indexAxis:'y',plugins:{legend:{display:false}}});
-  const lowRows=riskStudents.slice(0,20).map((r,i)=>({'#':i+1,Estudiante:r.al,Curso:(rows.find(x=>x.al===r.al)||{}).curso||'—','Promedio 1°C':r.p.toFixed(2),Estado:r.p<5?'Crítico':'En proceso'}));
+  const lowRows=riskStudents.slice(0,20).map((r,i)=>({'#':i+1,Estudiante:r.al,Curso:studentCourseMap.get(r.al)||(rows.find(x=>x.al===r.al)||{}).curso||'—','Promedio 1°C':r.p.toFixed(2),Estado:r.p<5?'Crítico':'En proceso'}));
   renderTable('th-alerta','tb-alerta',['#','Estudiante','Curso','Promedio 1°C','Estado'],lowRows);
   [...document.querySelectorAll('#tb-alerta tr')].forEach(tr=>{const td=tr.lastElementChild; if(!td) return; td.innerHTML=`<span class="badge ${td.textContent==='Crítico'?'b-crit':'b-proc'}">${td.textContent}</span>`});
 
   // rankings
-  const top15=Object.entries(byStudent).map(([a,v])=>({est:a,p:avg(v),curso:(rows.find(x=>x.al===a)||{}).curso||'—'})).sort((a,b)=>b.p-a.p).slice(0,15);
+  const top15=Object.entries(byStudent).map(([a,v])=>({est:a,p:avg(v),curso:studentCourseMap.get(a)||(rows.find(x=>x.al===a)||{}).curso||'—'})).sort((a,b)=>b.p-a.p).slice(0,15);
   renderTable('th-top15','tb-top15',['#','Estudiante','Curso','Promedio'],top15.map((r,i)=>({'#':i+1,Estudiante:r.est,Curso:r.curso,Promedio:r.p.toFixed(2)})));
   mk('ch-rank-cursos','bar',{labels:[...cl].sort((a,b)=>avg(byCourse[b].nf)-avg(byCourse[a].nf)),datasets:[{data:[...cl].sort((a,b)=>avg(byCourse[b].nf)-avg(byCourse[a].nf)).map(c=>avg(byCourse[c].nf)),backgroundColor:[...cl].sort((a,b)=>avg(byCourse[b].nf)-avg(byCourse[a].nf)).map(c=>avg(byCourse[c].nf)>=8?'#66b488':avg(byCourse[c].nf)>=7.5?'#6ea4d6':avg(byCourse[c].nf)>=7?'#d9af57':'#e66767')}]},{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{min:6,max:9}}});
 
