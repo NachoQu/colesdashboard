@@ -142,8 +142,8 @@ td{padding:9px 12px;border-bottom:1px solid #e6ecf3}
 <script>
 const ACCESS_KEY='dashboard_access_v1';
 const SCHOOL_ACCESS=[
-  {id:'nzps',name:'NZPS',api:'https://script.google.com/macros/s/AKfycbzUjY4y_BWKMfmTdRV3F6RFqLizlyjnFIXjCogoc740qNtrBsi9AYM-RKjgk8Q0qv_CXw/exec'},
-  {id:'san-patricio',name:'San Patricio',api:'https://script.google.com/macros/s/AKfycbzUjY4y_BWKMfmTdRV3F6RFqLizlyjnFIXjCogoc740qNtrBsi9AYM-RKjgk8Q0qv_CXw/exec'}
+  {id:'nzps',name:'NZPS',api:'https://script.google.com/macros/s/AKfycbzUjY4y_BWKMfmTdRV3F6RFqLizlyjnFIXjCogoc740qNtrBsi9AYM-RKjgk8Q0qv_CXw/exec',match:['nz','new zealand']},
+  {id:'san-patricio',name:'San Patricio',api:'https://script.google.com/macros/s/AKfycbzUjY4y_BWKMfmTdRV3F6RFqLizlyjnFIXjCogoc740qNtrBsi9AYM-RKjgk8Q0qv_CXw/exec',match:['san patricio','sanpa']}
 ];
 const TABS=[['resumen-general','Resumen General'],['por-curso','Por Curso'],['materias','Materias'],['trayectorias','Trayectorias'],['asistencia','Asistencia'],['alerta-academica','Alerta Académica'],['rankings','Rankings'],['insights','Insights Clave']];
 let schools=[...SCHOOL_ACCESS], currentSchoolId='nzps', DB={}, charts={};
@@ -170,6 +170,35 @@ function logout(){
   location.href='index.html';
 }
 
+
+function schoolMatch(row, school){
+  const bag=[row.colegio_id,row.colegio,row.colegio_nombre,row.school_id,row.school,row.school_name]
+    .map(v=>String(v||'').toLowerCase()).join(' ');
+  if(!bag.trim()) return true;
+  return (school.match||[]).some(m=>bag.includes(String(m).toLowerCase()));
+}
+function filterDatasetBySchool(raw, school){
+  const out={...raw};
+  ['alumnos','materias','calificaciones','asistencia','config'].forEach(k=>{
+    if(Array.isArray(raw[k])) out[k]=raw[k].filter(r=>schoolMatch(r,school));
+  });
+  return out;
+}
+function totalRows(db){
+  return ['alumnos','calificaciones','asistencia','materias'].reduce((a,k)=>a+(Array.isArray(db[k])?db[k].length:0),0);
+}
+
+function detectSourceTag(raw){
+  const probe=[];
+  const c0=(raw.config&&raw.config[0])||{};
+  probe.push(c0.colegio_nombre,c0.colegio,c0.colegio_id,c0.school,c0.school_name,c0.school_id);
+  ['alumnos','calificaciones','asistencia','materias'].forEach(k=>{
+    const r=(raw[k]&&raw[k][0])||{};
+    probe.push(r.colegio_nombre,r.colegio,r.colegio_id,r.school,r.school_name,r.school_id);
+  });
+  return probe.map(v=>String(v||'').toLowerCase()).join(' ');
+}
+
 function bootTabs(){
   const tabs=document.getElementById('tabs');
   tabs.innerHTML=TABS.map(([id,l],i)=>`<div class="tab ${i===0?'active':''}" onclick="goTo('${id}')">${l}</div>`).join('');
@@ -185,9 +214,16 @@ async function boot(){
   document.getElementById('s-load').style.display='block'; document.getElementById('s-err').style.display='none';
   try{
     const r=await fetch(activeSchool().api,{cache:'no-store'}); if(!r.ok) throw new Error('HTTP '+r.status);
-    DB=await r.json();
-    if (!DB || typeof DB!=='object') throw new Error('La respuesta del AppScript no es JSON válido.');
-    if (!Array.isArray(DB.calificaciones) && !Array.isArray(DB.alumnos)) throw new Error('El AppScript no devolvió hojas esperadas (alumnos/calificaciones).');
+    const raw=await r.json();
+    if (!raw || typeof raw!=='object') throw new Error('La respuesta del AppScript no es JSON válido.');
+    if (!Array.isArray(raw.calificaciones) && !Array.isArray(raw.alumnos)) throw new Error('El AppScript no devolvió hojas esperadas (alumnos/calificaciones).');
+    const sourceTag=detectSourceTag(raw);
+    const wanted=activeSchool();
+    if(sourceTag && wanted.match && !wanted.match.some(m=>sourceTag.includes(String(m).toLowerCase()))){
+      throw new Error(`El endpoint cargado parece corresponder a otro colegio (detectado: ${sourceTag.slice(0,80)}...).`);
+    }
+    DB=filterDatasetBySchool(raw, wanted);
+    if (totalRows(DB)===0) throw new Error(`No hay datos para ${wanted.name} en este endpoint. Revisá el AppScript de ese colegio o su identificador.`);
     buildAll();
     document.getElementById('s-load').style.display='none';
     goTo('resumen-general');
@@ -195,7 +231,7 @@ async function boot(){
   }catch(e){
     document.getElementById('s-load').style.display='none';
     document.getElementById('s-err').style.display='block';
-    document.getElementById('errmsg').innerHTML=`${e.message}<br><br>Revisá que el deploy sea /exec y acceso público (Anyone).`;
+    document.getElementById('errmsg').innerHTML=`${e.message}<br><br>Si ambos colegios usan el mismo /exec, el backend debe devolver datos diferenciados por colegio.`;
     console.error('Boot error', e, {api: activeSchool().api});
   }
 }
