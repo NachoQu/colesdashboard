@@ -201,7 +201,35 @@ function parseN(v){
 }
 function avg(a){return a.length?a.reduce((x,y)=>x+y,0)/a.length:0}
 function findCol(rows,re){if(!rows.length)return null;return Object.keys(rows[0]).find(h=>re.test(h))}
-function alumnoCol(rows){return findCol(rows,/alumno|estudiante|nombre|name/i)}
+function alumnoCol(rows){
+  if(!rows.length) return null;
+  const keys=Object.keys(rows[0]);
+  return keys.find(h=>/^alumno$|^estudiante$|^student$|^nombre_completo$|^full_name$/i.test(h))
+      || keys.find(h=>/^alumno_id$|^student_id$/i.test(h))
+      || keys.find(h=>/alumno|estudiante|student/i.test(h) && !/colegio|school/i.test(h));
+}
+function studentValue(row, rows){
+  if(!row) return '—';
+  const keys=rows && rows.length ? Object.keys(rows[0]) : Object.keys(row);
+  const kAlumno = keys.find(h=>/^alumno$|^estudiante$|^student$|^nombre_completo$|^full_name$/i.test(h));
+  const kApe = keys.find(h=>/^apellido(s)?$/i.test(h));
+  const kNom = keys.find(h=>/^nombre$/i.test(h));
+  const kId = keys.find(h=>/^alumno_id$|^student_id$/i.test(h));
+  const direct = kAlumno ? String(row[kAlumno]||'').trim() : '';
+  if (direct) return direct;
+  const full = [kApe?row[kApe]:'', kNom?row[kNom]:''].map(v=>String(v||'').trim()).filter(Boolean).join(', ');
+  if (full) return full;
+  if (kId) return String(row[kId]||'').trim();
+  return '—';
+}
+
+function studentIdValue(row, rows){
+  if(!row) return '';
+  const keys=rows && rows.length ? Object.keys(rows[0]) : Object.keys(row);
+  const kId = keys.find(h=>/^alumno_id$|^student_id$/i.test(h));
+  if(kId){ const v=String(row[kId]||'').trim(); if(v) return v; }
+  return studentValue(row, rows);
+}
 function cursoCol(rows){return findCol(rows,/curso|año|anio|division|seccion|class|grado/i)}
 function materiaCol(rows){return findCol(rows,/materia|asignatura|subject/i)}
 function notaCol(rows){return findCol(rows,/nota|prom|calif|score|grade|final/i)}
@@ -214,16 +242,15 @@ function buildDataset(){
   const nF=notaCol(cal)||Object.keys(cal[0]||{})[2];
   const n1=findCol(cal,/1\s*[°º]?\s*c|primer|q1/i) || nF;
   const n2=findCol(cal,/2\s*[°º]?\s*c|segundo|q2/i) || nF;
-  const rows=cal.map(r=>({al:String(r[aCol]||'—').trim(),curso:String(r[cCol]||'—').trim(),materia:String(r[mCol]||'—').trim(),n1:parseN(r[n1]),n2:parseN(r[n2]),nf:parseN(r[nF])})).filter(r=>r.al!=='—');
+  const rows=cal.map(r=>({aid:studentIdValue(r, cal),al:studentValue(r, cal),curso:String(r[cCol]||'—').trim(),materia:String(r[mCol]||'—').trim(),n1:parseN(r[n1]),n2:parseN(r[n2]),nf:parseN(r[nF])})).filter(r=>r.al!=='—');
   const iCol=findCol(as,/inasist|ausenc|falt/i); const pCol=findCol(as,/asistencia|present|attendance/i);
-  const asRows=as.map(r=>({al:String(r[alumnoCol(as)||aCol]||'—').trim(),curso:String(r[cursoCol(as)||cCol]||'—').trim(),inas:iCol?parseN(r[iCol]):(100-(parseN(r[pCol])||0))/10,c1:parseN(r[findCol(as,/1\s*[°º]?\s*c|primer|q1/i)]),c2:parseN(r[findCol(as,/2\s*[°º]?\s*c|segundo|q2/i)])}));
+  const asRows=as.map(r=>({aid:studentIdValue(r, as),al:studentValue(r, as),curso:String(r[cursoCol(as)||cCol]||'—').trim(),inas:iCol?parseN(r[iCol]):(100-(parseN(r[pCol])||0))/10,c1:parseN(r[findCol(as,/1\s*[°º]?\s*c|primer|q1/i)]),c2:parseN(r[findCol(as,/2\s*[°º]?\s*c|segundo|q2/i)])}));
 
   const alRows=DB.alumnos||[];
-  const alNameCol=alumnoCol(alRows)||findCol(alRows,/alumno|estudiante|nombre|name/i);
   const alCourseCol=cursoCol(alRows)||findCol(alRows,/curso|año|anio|division|seccion|class|grado/i);
   const masterStudents = alRows.length
-    ? alRows.map(r=>({al:String((alNameCol&&r[alNameCol])||'').trim(), curso:String((alCourseCol&&r[alCourseCol])||'').trim()})).filter(x=>x.al)
-    : [...new Map(rows.map(r=>[r.al,{al:r.al,curso:r.curso}])).values()];
+    ? alRows.map(r=>({aid:studentIdValue(r, alRows),al:studentValue(r, alRows), curso:String((alCourseCol&&r[alCourseCol])||'').trim()})).filter(x=>x.aid && x.al && x.al!=='—')
+    : [...new Map(rows.map(r=>[r.aid||r.al,{aid:r.aid||r.al,al:r.al,curso:r.curso}])).values()];
 
   return {rows,asRows,masterStudents};
 }
@@ -241,16 +268,19 @@ function buildAll(){
   killCharts();
   const ds=buildDataset();
   const rows=ds.rows, asRows=ds.asRows, masterStudents=ds.masterStudents||[];
-  const students=[...new Set(masterStudents.map(r=>r.al).filter(Boolean))];
+  const students=[...new Set(masterStudents.map(r=>r.aid||r.al).filter(Boolean))];
   const courses=[...new Set((masterStudents.length?masterStudents:rows).map(r=>r.curso).filter(Boolean))];
-  document.getElementById('hdr-sub').textContent=`${activeSchool().name} · Nivel Secundario · ${courses.length} cursos · ${students.length} estudiantes`;
+  const conf0 = (DB.config&&DB.config[0])||{};
+  const schoolLabel = conf0.colegio_nombre || conf0.colegio || activeSchool().name;
+  const nivelLabel = conf0.nivel || 'Nivel Secundario';
+  document.getElementById('hdr-sub').textContent=`${schoolLabel} · ${nivelLabel} · ${courses.length} cursos · ${students.length} estudiantes`;
 
   // Mapa maestro de curso por alumno para evitar subconteos por calificaciones
-  const studentCourseMap=new Map(masterStudents.map(r=>[r.al,r.curso]));
+  const studentCourseMap=new Map(masterStudents.map(r=>[r.aid||r.al,r.curso]));
 
   // resumen
   const avgF=avg(rows.map(r=>r.nf).filter(v=>!isNaN(v))); const risk=rows.filter(r=>r.nf<7).length;
-  const inasMap={};asRows.forEach(a=>{(inasMap[a.al]=inasMap[a.al]||[]).push(a.inas)}); const highAbs=Object.values(inasMap).filter(v=>avg(v)>=20).length;
+  const inasMap={};asRows.forEach(a=>{const k=a.aid||a.al;(inasMap[k]=inasMap[k]||[]).push(a.inas)}); const highAbs=Object.values(inasMap).filter(v=>avg(v)>=20).length;
   const tea=rows.filter(r=>r.n1>=8).length;
   kpi('kpi-resumen',[
     {v:students.length,t:'ESTUDIANTES',s:`${courses.length} cursos`,c:'#1f4577'},
@@ -259,9 +289,9 @@ function buildAll(){
     {v:((highAbs/(students.length||1))*100).toFixed(1)+'%',t:'AUSENTISMO ELEVADO',s:`${highAbs} alumnos con >20 inasistencias`,c:'#dc4f4f'},
     {v:((tea/(rows.length||1))*100).toFixed(1)+'%',t:'TEA 1ER CUATRIMESTRE',s:'Trayectoria Educativa Avanzada',c:'#1f4577'}
   ]);
-  const byCourse={}; rows.forEach(r=>{const c=r.curso||studentCourseMap.get(r.al)||'Sin curso';byCourse[c]=byCourse[c]||{n1:[],n2:[],nf:[],als:new Set()};byCourse[c].n1.push(r.n1);byCourse[c].n2.push(r.n2);byCourse[c].nf.push(r.nf);byCourse[c].als.add(r.al)});
+  const byCourse={}; rows.forEach(r=>{const c=r.curso||studentCourseMap.get(r.al)||'Sin curso';byCourse[c]=byCourse[c]||{n1:[],n2:[],nf:[],als:new Set()};byCourse[c].n1.push(r.n1);byCourse[c].n2.push(r.n2);byCourse[c].nf.push(r.nf);byCourse[c].als.add(r.aid||r.al)});
   // completar con alumnos maestros aunque no tengan todas las calificaciones
-  masterStudents.forEach(ms=>{const c=ms.curso||'Sin curso';byCourse[c]=byCourse[c]||{n1:[],n2:[],nf:[],als:new Set()};byCourse[c].als.add(ms.al);});
+  masterStudents.forEach(ms=>{const c=ms.curso||'Sin curso';byCourse[c]=byCourse[c]||{n1:[],n2:[],nf:[],als:new Set()};byCourse[c].als.add(ms.aid||ms.al);});
   const cl=Object.keys(byCourse);
   mk('ch-res-cursos','bar',{labels:cl,datasets:[
     {label:'1er Cuatrimestre',data:cl.map(c=>avg(byCourse[c].n1)),backgroundColor:'#3c74b0'},
@@ -275,8 +305,8 @@ function buildAll(){
   const byYear={}; cl.forEach(c=>{const y=(c.match(/\d+/)||['?'])[0]+'° Año'; byYear[y]=byYear[y]||[]; byYear[y].push(avg(byCourse[c].nf));});
   const yl=Object.keys(byYear);
   mk('ch-res-anio','bar',{labels:yl,datasets:[{label:'Promedio',data:yl.map(y=>avg(byYear[y])),backgroundColor:yl.map((_,i)=>['#3a6fa9','#4a91cf','#d6a233','#3ea66d','#e63b3b','#cf3f3f'][i%6])}]},{plugins:{legend:{display:false}},scales:{y:{min:5,max:10}}});
-  const byStudent={}; rows.forEach(r=>{(byStudent[r.al]=byStudent[r.al]||[]).push(r.n1)}); const bucket={'< 6':0,'6-7':0,'7-8':0,'8-9':0,'9-10':0};
-  Object.values(byStudent).map(v=>avg(v)).forEach(v=>{if(v<6)bucket['< 6']++;else if(v<7)bucket['6-7']++;else if(v<8)bucket['7-8']++;else if(v<9)bucket['8-9']++;else bucket['9-10']++;});
+  const byStudent={}; rows.forEach(r=>{const k=r.aid||r.al; byStudent[k]=byStudent[k]||{name:r.al,vals:[]}; byStudent[k].vals.push(r.n1)}); const bucket={'< 6':0,'6-7':0,'7-8':0,'8-9':0,'9-10':0};
+  Object.values(byStudent).map(v=>avg(v.vals)).forEach(v=>{if(v<6)bucket['< 6']++;else if(v<7)bucket['6-7']++;else if(v<8)bucket['7-8']++;else if(v<9)bucket['8-9']++;else bucket['9-10']++;});
   d3Donut('d3-prom-est',Object.entries(bucket).map(([label,value],i)=>({label,value,color:['#e53e3e','#ea8a34','#d8a52f','#4794d2','#3fa46b'][i]})));
 
   // por curso
@@ -318,7 +348,7 @@ function buildAll(){
   mk('ch-asi-corr','scatter',{datasets:[{label:'Cursos',data:pts,backgroundColor:'#2f70b0'}]},{plugins:{legend:{display:false}},scales:{x:{title:{display:true,text:'Inasistencias promedio'}},y:{min:5,max:9,title:{display:true,text:'Promedio 1°C'}}}});
 
   // alerta
-  const riskStudents=Object.entries(byStudent).map(([a,v])=>({al:a,p:avg(v)})).filter(x=>x.p<6).sort((a,b)=>a.p-b.p);
+  const riskStudents=Object.entries(byStudent).map(([aid,v])=>({aid,al:v.name,p:avg(v.vals)})).filter(x=>x.p<6).sort((a,b)=>a.p-b.p);
   kpi('kpi-alerta',[
     {v:riskStudents.length,t:'ESTUDIANTES EN RIESGO',s:'Con al menos 1 materia final <7',c:'#dc4f4f'},
     {v:((riskStudents.length/(students.length||1))*100).toFixed(1)+'%',t:'% DEL TOTAL',s:`${riskStudents.length} de ${students.length} alumnos`,c:'#dc4f4f'},
@@ -326,12 +356,12 @@ function buildAll(){
   ]);
   mk('ch-alerta-curso','bar',{labels:cl,datasets:[{label:'En riesgo',data:cl.map(c=>rows.filter(r=>r.curso===c&&r.nf<7).length),backgroundColor:'#e66c6c'},{label:'Total alumnos',data:cl.map(c=>byCourse[c].als.size),backgroundColor:'#d6dbe3'}]});
   mk('ch-alerta-mat','bar',{labels:riskM,datasets:[{data:riskM.map(m=>byMat[m].bad),backgroundColor:'#e66c6c'}]},{indexAxis:'y',plugins:{legend:{display:false}}});
-  const lowRows=riskStudents.slice(0,20).map((r,i)=>({'#':i+1,Estudiante:r.al,Curso:studentCourseMap.get(r.al)||(rows.find(x=>x.al===r.al)||{}).curso||'—','Promedio 1°C':r.p.toFixed(2),Estado:r.p<5?'Crítico':'En proceso'}));
+  const lowRows=riskStudents.slice(0,20).map((r,i)=>({'#':i+1,Estudiante:r.al,Curso:studentCourseMap.get(r.aid)||(rows.find(x=>(x.aid||x.al)===(r.aid||r.al))||{}).curso||'—','Promedio 1°C':r.p.toFixed(2),Estado:r.p<5?'Crítico':'En proceso'}));
   renderTable('th-alerta','tb-alerta',['#','Estudiante','Curso','Promedio 1°C','Estado'],lowRows);
   [...document.querySelectorAll('#tb-alerta tr')].forEach(tr=>{const td=tr.lastElementChild; if(!td) return; td.innerHTML=`<span class="badge ${td.textContent==='Crítico'?'b-crit':'b-proc'}">${td.textContent}</span>`});
 
   // rankings
-  const top15=Object.entries(byStudent).map(([a,v])=>({est:a,p:avg(v),curso:studentCourseMap.get(a)||(rows.find(x=>x.al===a)||{}).curso||'—'})).sort((a,b)=>b.p-a.p).slice(0,15);
+  const top15=Object.entries(byStudent).map(([aid,v])=>({est:v.name,p:avg(v.vals),curso:studentCourseMap.get(aid)||(rows.find(x=>(x.aid||x.al)===aid)||{}).curso||'—'})).sort((a,b)=>b.p-a.p).slice(0,15);
   renderTable('th-top15','tb-top15',['#','Estudiante','Curso','Promedio'],top15.map((r,i)=>({'#':i+1,Estudiante:r.est,Curso:r.curso,Promedio:r.p.toFixed(2)})));
   mk('ch-rank-cursos','bar',{labels:[...cl].sort((a,b)=>avg(byCourse[b].nf)-avg(byCourse[a].nf)),datasets:[{data:[...cl].sort((a,b)=>avg(byCourse[b].nf)-avg(byCourse[a].nf)).map(c=>avg(byCourse[c].nf)),backgroundColor:[...cl].sort((a,b)=>avg(byCourse[b].nf)-avg(byCourse[a].nf)).map(c=>avg(byCourse[c].nf)>=8?'#66b488':avg(byCourse[c].nf)>=7.5?'#6ea4d6':avg(byCourse[c].nf)>=7?'#d9af57':'#e66767')}]},{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{min:6,max:9}}});
 
