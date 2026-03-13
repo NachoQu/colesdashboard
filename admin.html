@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Admin · Colegios</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#edf2f8;--card:#fff;--text:#24324a;--muted:#6e7f98;--line:#d6dee9;--blue:#255b9f;--blue-dark:#1f4577}
+*{box-sizing:border-box;margin:0;padding:0}body{font-family:Outfit,sans-serif;background:var(--bg);color:var(--text);padding:24px}
+.wrap{max-width:1150px;margin:0 auto}.card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
+input,textarea{width:100%;padding:9px;border:1px solid #cfd9e7;border-radius:8px}label{font-size:12px;color:#60738f;font-weight:700}
+.grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}.btn{background:var(--blue-dark);color:#fff;border:0;padding:10px 12px;border-radius:8px;cursor:pointer}
+.btn.red{background:#b32d2d}.tbl{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px;border-bottom:1px solid #e6ecf3;text-align:left}
+#panel{display:none}
+</style></head><body><div class="wrap">
+<div class="card" id="login"><h2 style="margin-bottom:10px">Admin</h2><p style="color:#6e7f98;margin-bottom:10px">Ingresá como administrador para gestionar colegios y links de AppScript.</p>
+<label>Usuario</label><input id="u" placeholder="admin"><label style="display:block;margin-top:8px">Contraseña</label><input id="p" type="password" placeholder="admin2026">
+<button class="btn" style="margin-top:10px" onclick="adminLogin()">Ingresar</button><div id="err" style="color:#b32d2d;font-size:12px;margin-top:8px"></div></div>
+
+<div id="panel">
+<div class="card"><h2 style="margin-bottom:8px">Gestión de colegios</h2><p style="color:#6e7f98">Podés editar links de AppScript y agregar nuevas instituciones.</p></div>
+<div class="card"><div class="grid"><div><label>ID</label><input id="id" placeholder="ej: nuevo-colegio"></div><div><label>Nombre</label><input id="name" placeholder="Nombre"></div><div><label>Contraseña</label><input id="pass" placeholder="clave2026"></div></div>
+<div style="margin-top:8px"><label>Link AppScript (/exec)</label><input id="api" placeholder="https://script.google.com/macros/s/.../exec"></div>
+<div style="margin-top:8px"><label>Match colegios (coma separado)</label><input id="match" placeholder="san patricio, sanpa"></div>
+<button class="btn" style="margin-top:10px" onclick="saveSchool()">Guardar / Actualizar</button></div>
+<div class="card"><table class="tbl"><thead><tr><th>ID</th><th>Nombre</th><th>API</th><th>Pass</th><th>Match</th><th>Acciones</th></tr></thead><tbody id="tb"></tbody></table></div>
+<div class="card"><button class="btn" onclick="goLogin()">Volver a login</button></div>
+</div>
+</div>
+<script>
+const ADMIN_USER='admin', ADMIN_PASS='admin2026', SCHOOL_CONFIGS_KEY='school_configs_v1';
+const DEFAULT_SCHOOLS=[
+  {id:'nzps',name:'NZPS',pass:'nzps2026',api:'https://script.google.com/macros/s/AKfycbzUjY4y_BWKMfmTdRV3F6RFqLizlyjnFIXjCogoc740qNtrBsi9AYM-RKjgk8Q0qv_CXw/exec',match:['nz','new zealand']},
+  {id:'san-patricio',name:'San Patricio',pass:'sanpa2026',api:'https://script.google.com/macros/s/AKfycbzUjY4y_BWKMfmTdRV3F6RFqLizlyjnFIXjCogoc740qNtrBsi9AYM-RKjgk8Q0qv_CXw/exec',match:['san patricio','sanpa']}
+];
+function load(){try{const v=JSON.parse(localStorage.getItem(SCHOOL_CONFIGS_KEY)||'null');if(Array.isArray(v)&&v.length)return v}catch{};localStorage.setItem(SCHOOL_CONFIGS_KEY,JSON.stringify(DEFAULT_SCHOOLS));return [...DEFAULT_SCHOOLS]}
+let schools=load();
+function persist(){localStorage.setItem(SCHOOL_CONFIGS_KEY,JSON.stringify(schools));render()}
+function adminLogin(){const u=document.getElementById('u').value.trim(),p=document.getElementById('p').value; if(u!==ADMIN_USER||p!==ADMIN_PASS){document.getElementById('err').textContent='Credenciales admin inválidas'; return;} document.getElementById('login').style.display='none';document.getElementById('panel').style.display='block';render();}
+function render(){const tb=document.getElementById('tb');tb.innerHTML=schools.map(s=>`<tr><td>${s.id}</td><td>${s.name}</td><td style="max-width:280px;word-break:break-all">${s.api}</td><td>${s.pass}</td><td>${(s.match||[]).join(', ')}</td><td><button class='btn' onclick='editSchool("${s.id}")'>Editar</button> <button class='btn red' onclick='delSchool("${s.id}")'>Eliminar</button></td></tr>`).join('')}
+function editSchool(id){const s=schools.find(x=>x.id===id); if(!s)return; document.getElementById('id').value=s.id; document.getElementById('name').value=s.name; document.getElementById('pass').value=s.pass; document.getElementById('api').value=s.api; document.getElementById('match').value=(s.match||[]).join(', ')}
+function delSchool(id){if(!confirm('¿Eliminar colegio?'))return; schools=schools.filter(s=>s.id!==id); persist()}
+function saveSchool(){const id=document.getElementById('id').value.trim(),name=document.getElementById('name').value.trim(),passv=document.getElementById('pass').value.trim(),apiV=document.getElementById('api').value.trim(),m=document.getElementById('match').value.split(',').map(x=>x.trim()).filter(Boolean); if(!id||!name||!passv||!apiV){alert('Completá ID, nombre, contraseña y API');return;} const ex=schools.find(s=>s.id===id); if(ex){ex.name=name;ex.pass=passv;ex.api=apiV;ex.match=m;} else schools.push({id,name,pass:passv,api:apiV,match:m}); persist(); document.getElementById('id').value='';document.getElementById('name').value='';document.getElementById('pass').value='';document.getElementById('api').value='';document.getElementById('match').value='';}
+function goLogin(){location.href='index.html'}
+</script></body></html>
